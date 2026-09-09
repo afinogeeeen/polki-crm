@@ -31,7 +31,7 @@ const App: React.FC = () => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(dataStore.getCurrentUser());
   const users = dataStore.getUsers();
-  const { toggleTheme, isDark, designVariant, setDesignVariant } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
 
   const location = useLocation();
 
@@ -253,22 +253,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* Design Variant Switcher */}
-            <Select
-              value={designVariant}
-              onChange={(v) => setDesignVariant(v as any)}
-              variant="borderless"
-              className={`w-28 sm:w-32 text-xs font-semibold rounded-full border transition shadow-sm ${
-                isDark ? 'bg-slate-800/90 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'
-              }`}
-              popupMatchSelectWidth={false}
-              dropdownStyle={{ borderRadius: 14, padding: 6 }}
-            >
-              <Option value="v1"><span className="font-semibold">🍎 Apple V1</span></Option>
-              <Option value="v2"><span className="font-semibold">➖ Linear V2</span></Option>
-              <Option value="v3"><span className="font-semibold">🏗️ Brutal V3</span></Option>
-              <Option value="v4"><span className="font-semibold">✨ Glass V4</span></Option>
-            </Select>
+
 
             {/* Apple-style Theme Switcher */}
             <Tooltip title={isDark ? 'Включить светлую тему' : 'Включить темную тему'}>
