@@ -48,8 +48,8 @@ export const INITIAL_USERS: UserProfile[] = [
 
 const INITIAL_CHATS: MarketplaceChat[] = [
   {
-    id: 'chat-avito-1',
-    marketplace: 'avito',
+    id: 'chat-ozon-2',
+    marketplace: 'ozon',
     buyer_name: 'Николай',
     product_title: 'Полка Гранит Габбро 60х15 см',
     last_message: 'Завтра сможете отправить?',
