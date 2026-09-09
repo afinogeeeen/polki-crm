@@ -1,6 +1,6 @@
 import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import { ConfigProvider, theme } from 'antd'
 import './index.css'
 import App from './App.tsx'
@@ -57,10 +57,10 @@ const ThemedApp: React.FC = () => {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <HashRouter>
       <ThemeProvider>
         <ThemedApp />
       </ThemeProvider>
-    </BrowserRouter>
+    </HashRouter>
   </StrictMode>,
 )
