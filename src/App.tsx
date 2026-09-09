@@ -31,7 +31,7 @@ const App: React.FC = () => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(dataStore.getCurrentUser());
   const users = dataStore.getUsers();
-  const { toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark, designVariant, setDesignVariant } = useTheme();
 
   const location = useLocation();
 
@@ -253,6 +253,23 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            {/* Design Variant Switcher */}
+            <Select
+              value={designVariant}
+              onChange={(v) => setDesignVariant(v as any)}
+              variant="borderless"
+              className={`w-28 sm:w-32 text-xs font-semibold rounded-full border transition shadow-sm ${
+                isDark ? 'bg-slate-800/90 border-slate-700 text-slate-300' : 'bg-white border-slate-300 text-slate-700'
+              }`}
+              popupMatchSelectWidth={false}
+              dropdownStyle={{ borderRadius: 14, padding: 6 }}
+            >
+              <Option value="v1"><span className="font-semibold">🍎 Apple V1</span></Option>
+              <Option value="v2"><span className="font-semibold">➖ Linear V2</span></Option>
+              <Option value="v3"><span className="font-semibold">🏗️ Brutal V3</span></Option>
+              <Option value="v4"><span className="font-semibold">✨ Glass V4</span></Option>
+            </Select>
+
             {/* Apple-style Theme Switcher */}
             <Tooltip title={isDark ? 'Включить светлую тему' : 'Включить темную тему'}>
               <button
@@ -270,7 +287,7 @@ const App: React.FC = () => {
             </Tooltip>
 
             {/* User Profile Selector (Apple Capsule Style) */}
-            <div className={`flex items-center gap-2 rounded-full px-3 py-1 border transition shadow-sm ${
+            <div className={`flex items-center gap-2 rounded-full px-3 py-1 border transition shadow-sm hidden md:flex ${
               isDark 
                 ? 'bg-slate-800/90 border-slate-700' 
                 : 'bg-white border-slate-300'
@@ -280,7 +297,7 @@ const App: React.FC = () => {
                 icon={<UserOutlined />} 
                 className="bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shrink-0 font-bold text-xs" 
               />
-              <div className="text-left leading-tight hidden sm:block mr-0.5">
+              <div className="text-left leading-tight hidden lg:block mr-0.5">
                 <span className={`text-[10px] uppercase font-bold tracking-wider block ${
                   isDark ? 'text-slate-400' : 'text-slate-500'
                 }`}>
@@ -291,7 +308,7 @@ const App: React.FC = () => {
                 value={currentUser.id}
                 onChange={handleUserChange}
                 variant="borderless"
-                className="w-36 sm:w-48 text-xs font-semibold"
+                className="w-24 lg:w-36 text-xs font-semibold"
                 popupMatchSelectWidth={false}
                 dropdownStyle={{
                   borderRadius: 14,
@@ -310,6 +327,7 @@ const App: React.FC = () => {
                 ))}
               </Select>
             </div>
+
 
             {/* External website link */}
             <a 
