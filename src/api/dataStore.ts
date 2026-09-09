@@ -10,13 +10,13 @@ import type {
 } from '../types';
 
 const STORAGE_KEYS = {
-  ORDERS: 'polki_crm_orders_v4',
-  TRACKING: 'polki_crm_tracking_v3',
-  REVIEWS: 'polki_crm_reviews_v3',
-  QUESTIONS: 'polki_crm_questions_v3',
-  CHATS: 'polki_crm_chats_v3',
-  CURRENT_USER: 'polki_crm_current_user_v4',
-  USERS: 'polki_crm_users_v4',
+  ORDERS: 'polki_crm_orders_v5',
+  TRACKING: 'polki_crm_tracking_v4',
+  REVIEWS: 'polki_crm_reviews_v4',
+  QUESTIONS: 'polki_crm_questions_v4',
+  CHATS: 'polki_crm_chats_v4',
+  CURRENT_USER: 'polki_crm_current_user_v5',
+  USERS: 'polki_crm_users_v5',
 };
 
 export const INITIAL_USERS: UserProfile[] = [
@@ -48,83 +48,19 @@ export const INITIAL_USERS: UserProfile[] = [
 
 const INITIAL_CHATS: MarketplaceChat[] = [
   {
-    id: 'chat-ozon-1',
-    marketplace: 'ozon',
-    buyer_name: 'Екатерина В.',
-    product_title: 'Полка из мрамора Калакатта 60х15 см',
-    last_message: 'Добрый вечер! Подскажите, а в комплекте идет дюбель для пустотелого кирпича?',
-    last_message_date: '09.09.2026 18:40',
+    id: 'chat-avito-1',
+    marketplace: 'avito',
+    buyer_name: 'Николай',
+    product_title: 'Полка Гранит Габбро 60х15 см',
+    last_message: 'Завтра сможете отправить?',
+    last_message_date: '10.09.2026 10:15',
     unread_count: 1,
     messages: [
       {
-        id: 'm1',
+        id: 'a1',
         sender: 'buyer',
-        text: 'Добрый день! Очень понравилась ваша полочка из белого мрамора.',
-        date: '09.09.2026 17:15',
-      },
-      {
-        id: 'm2',
-        sender: 'seller',
-        text: 'Здравствуйте, Екатерина! Рады, что вам понравилось наше изделие из натурального камня «Каменный Ручей».',
-        date: '09.09.2026 17:30',
-      },
-      {
-        id: 'm3',
-        sender: 'buyer',
-        text: 'Добрый вечер! Подскажите, а в комплекте идет дюбель для пустотелого кирпича?',
-        date: '09.09.2026 18:40',
-      }
-    ]
-  },
-  {
-    id: 'chat-wb-1',
-    marketplace: 'wildberries',
-    buyer_name: 'Артур Г.',
-    product_title: 'Полка гранитная черная 80х20 см',
-    last_message: 'Спасибо за оперативный ответ, оформил заказ на ВБ!',
-    last_message_date: '09.09.2026 14:20',
-    unread_count: 0,
-    messages: [
-      {
-        id: 'w1',
-        sender: 'buyer',
-        text: 'Здравствуйте! Камень матовый или глянец?',
-        date: '09.09.2026 13:50',
-      },
-      {
-        id: 'w2',
-        sender: 'seller',
-        text: 'Здравствуйте! Полка имеет зеркальную алмазную полировку с защитной гидрофобной обработкой.',
-        date: '09.09.2026 14:05',
-      },
-      {
-        id: 'w3',
-        sender: 'buyer',
-        text: 'Спасибо за оперативный ответ, оформил заказ на ВБ!',
-        date: '09.09.2026 14:20',
-      }
-    ]
-  },
-  {
-    id: 'chat-yandex-1',
-    marketplace: 'yandex',
-    buyer_name: 'Ольга Васильева',
-    product_title: 'Полка угловая Травертин 25х25 см',
-    last_message: 'А можно сделать такую же, но радиусом 32 см?',
-    last_message_date: '09.09.2026 16:05',
-    unread_count: 1,
-    messages: [
-      {
-        id: 'y1',
-        sender: 'buyer',
-        text: 'Здравствуйте! У вас потрясающий травертин в магазине.',
-        date: '09.09.2026 15:40',
-      },
-      {
-        id: 'y2',
-        sender: 'buyer',
-        text: 'А можно сделать такую же, но радиусом 32 см?',
-        date: '09.09.2026 16:05',
+        text: 'Здравствуйте! Завтра сможете отправить?',
+        date: '10.09.2026 10:15',
       }
     ]
   }
@@ -132,312 +68,54 @@ const INITIAL_CHATS: MarketplaceChat[] = [
 
 const INITIAL_ORDERS: Order[] = [
   {
-    id: 'ord-multi-test',
-    order_number: 'П-1088',
-    client_name: 'Дмитрий Романов (Дизайн-проект ЖК «Символ»)',
-    client_phone: '+7 (915) 880-12-34',
+    id: 'ord-new-1',
+    order_number: 'П-2026-001',
+    client_name: 'Александр (Дизайнер)',
+    client_phone: '+7 (999) 111-22-33',
     channel: 'telegram',
-    client_contact: '@dmitriy_romanov_arch',
-    product_description: 'Индивидуальный комплект каменных полок в ванную комнату и гостиную по дизайн-проекту',
-    stone_type: 'Фотоподбор слэба (Калакатта + Гранит)',
-    dimensions: 'Комплект из 6 изделий (см. спецификацию)',
-    items: [
-      {
-        id: 'item-1',
-        stone_type: 'По фотоподбору слэба (светлый мрамор)',
-        dimensions: '1200х220х20 мм',
-        quantity: 2,
-        price: 9800,
-        description: 'Лицевая еврофаска полированная, 3 отверстия под скрытый менсолодержатель',
-      },
-      {
-        id: 'item-2',
-        stone_type: 'По фотоподбору слэба (светлый мрамор)',
-        dimensions: '800х180х20 мм',
-        quantity: 1,
-        price: 6400,
-        description: 'Еврофаска по кругу, гидрофобная водоотталкивающая пропитка для душевой',
-      },
-      {
-        id: 'item-3',
-        stone_type: 'По фотоподбору слэба (темный кварцит/гранит)',
-        dimensions: '600х150х20 мм',
-        quantity: 2,
-        price: 5200,
-        description: 'Скругление углов R10, полировка торцов со всех видимых сторон',
-      },
-      {
-        id: 'item-4',
-        stone_type: 'По фотоподбору слэба (темный кварцит/гранит)',
-        dimensions: '1400х250х30 мм',
-        quantity: 1,
-        price: 14600,
-        description: 'Массивная полка под раковину, усиленный скрытый крепеж, вырез под сифон',
-      },
-    ],
-    notes: 'Упаковать каждую полку в многослойную пупырчатую пленку и жесткую деревянную обрешетку',
-    total_price: 51000,
-    prepayment_amount: 25500,
-    prepayment_received: true,
-    remaining_paid: false,
-    tracking_number: '10318956270',
-    status: 'in_production',
-    accepted_by: 'Лера',
-    polisher: 'Михаил',
-    photos: [
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=500&auto=format&fit=crop&q=60',
-    ],
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'ord-101',
-    order_number: 'ORD-20260909-001',
-    client_name: 'Иван Смирнов',
-    client_phone: '+7 (916) 123-45-67',
-    channel: 'telegram',
-    client_contact: '@ivan_smirnov',
-    product_description: 'Полка для ванной с закругленными углами и еврофаской',
-    stone_type: 'Белый мрамор Калакатта Экстра (Италия)',
-    dimensions: '600x150x20 мм',
-    notes: 'Клиент просил дополнительную полировку кромки',
-    total_price: 12500,
-    prepayment_amount: 6000,
-    prepayment_received: true,
-    remaining_paid: false,
-    tracking_number: '1489201934',
-    status: 'in_delivery',
-    accepted_by: 'Мария (Менеджер продаж)',
-    polisher: 'Алексей Смирнов (Цех №1)',
-    photos: [
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500&auto=format&fit=crop&q=60',
-    ],
-    created_at: '2026-09-05T10:30:00Z',
-  },
-  {
-    id: 'ord-102',
-    order_number: 'ORD-20260909-002',
-    client_name: 'Елена Васильева',
-    client_phone: '+7 (921) 987-65-43',
-    channel: 'avito',
-    client_contact: 'Чат Авито: каменные полки СПб',
-    product_description: 'Комплект из двух парящих полок под раковину',
-    stone_type: 'Черный гранит Габбро-Диабаз (Карелия)',
-    dimensions: '900x200x30 мм',
-    notes: 'Скрытый монтаж в комплекте',
-    total_price: 24000,
-    prepayment_amount: 12000,
-    prepayment_received: true,
-    remaining_paid: false,
-    status: 'in_production',
-    accepted_by: 'Антон (Администратор)',
-    polisher: 'Виктор Ковалев (Цех №2)',
-    photos: [
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=500&auto=format&fit=crop&q=60',
-    ],
-    created_at: '2026-09-07T14:15:00Z',
-  },
-  {
-    id: 'ord-103',
-    order_number: 'ORD-20260909-003',
-    client_name: 'Артем Мельников',
-    client_phone: '+7 (903) 445-56-78',
-    channel: 'call',
-    client_contact: 'Входящий звонок с сайта polkistone.ru',
-    product_description: 'Полка с подсветкой в нишу душевой',
-    stone_type: 'Оникс Медовый полупрозрачный',
-    dimensions: '450x120x15 мм',
-    notes: 'Вырез под LED-профиль',
-    total_price: 18500,
-    prepayment_amount: 9000,
-    prepayment_received: false,
-    remaining_paid: false,
-    status: 'waiting_prepayment',
-    accepted_by: 'Мария (Менеджер продаж)',
-    polisher: 'Алексей Смирнов (Цех №1)',
-    photos: [],
-    created_at: '2026-09-08T09:00:00Z',
-  },
-  {
-    id: 'ord-104',
-    order_number: 'ORD-20260909-004',
-    client_name: 'Ольга Кузнецова',
-    client_phone: '+7 (999) 333-22-11',
-    channel: 'marketplace',
-    client_contact: 'Чат покупателя Ozon (Каменный Ручей)',
-    product_description: 'Угловая полочка для косметики',
-    stone_type: 'Травертин Ноче (бежево-коричневый)',
-    dimensions: '250x250x20 мм',
-    notes: 'Матовая фактура',
-    total_price: 7800,
-    prepayment_amount: 7800,
+    client_contact: '@alex_design',
+    product_description: 'Две полки из акрилового камня в душевую',
+    stone_type: 'Акриловый камень (Белый)',
+    dimensions: '400х150х12 мм',
+    items: [],
+    notes: 'Отправить СДЭКом как можно скорее',
+    total_price: 15000,
+    prepayment_amount: 15000,
     prepayment_received: true,
     remaining_paid: true,
-    tracking_number: '1489201988',
-    status: 'delivered',
-    accepted_by: 'Антон (Администратор)',
-    polisher: 'Сергей Баранов (Распил и фаска)',
-    photos: [
-      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=500&auto=format&fit=crop&q=60'
-    ],
-    created_at: '2026-09-01T11:20:00Z',
-  },
-  {
-    id: 'ord-105',
-    order_number: 'ORD-20260909-005',
-    client_name: 'Михаил Захаров (Дизайн-бюро)',
-    client_phone: '+7 (985) 555-11-22',
-    channel: 'bitrix',
-    client_contact: 'Лид из Битрикс24 #4892',
-    product_description: 'Серия из 4-х полок для шоурума',
-    stone_type: 'Кварцит Патагония натуральный с кристаллами',
-    dimensions: '1100x250x30 мм',
-    notes: 'Премиум полировка, безналичный расчет',
-    total_price: 68000,
-    prepayment_amount: 34000,
-    prepayment_received: true,
-    remaining_paid: false,
+    tracking_number: '1234567890',
     status: 'in_production',
-    accepted_by: 'Мария (Менеджер продаж)',
-    polisher: 'Дмитрий Орлов (Полировка и гидрофоб)',
+    accepted_by: 'Руководитель',
+    polisher: 'Алексей',
     photos: [],
-    created_at: '2026-09-09T11:00:00Z',
+    created_at: new Date().toISOString(),
   }
 ];
 
 const INITIAL_TRACKINGS: TrackingItem[] = [
   {
-    id: 'trk-01',
-    tracking_number: '1489201934',
-    order_id: 'ord-101',
-    order_number: 'ORD-20260909-001',
-    recipient_name: 'Иван Смирнов',
-    destination_city: 'Москва, ПВЗ ул. Ленина 42',
-    label: 'Полка Белый мрамор (Каменный Ручей)',
-    status: 'in_transit',
-    estimated_date: '10.09.2026',
+    id: 'trk-new-1',
+    tracking_number: '1234567890',
+    order_id: 'ord-new-1',
+    order_number: 'П-2026-001',
+    recipient_name: 'Александр',
+    destination_city: 'Москва, ПВЗ Арбат',
+    label: 'Полки акрил 2 шт',
+    status: 'created',
+    estimated_date: '14.09.2026',
     history: [
       {
-        date: '08.09.2026 19:40',
-        status: 'В пути в транзитный город',
-        city: 'Москва Сортировочный',
-        description: 'Отправление перемещается в город назначения'
-      },
-      {
-        date: '07.09.2026 14:10',
-        status: 'Принят на склад отправителя',
-        city: 'Санкт-Петербург',
-        description: 'Груз взвешен и упакован в защитную обрешетку'
-      },
-      {
-        date: '06.09.2026 18:22',
+        date: new Date().toLocaleString('ru-RU'),
         status: 'Создана накладная',
         city: 'Санкт-Петербург',
-        description: 'Электронное оформление отправки в СДЭК'
-      }
-    ]
-  },
-  {
-    id: 'trk-02',
-    tracking_number: '1489201988',
-    order_id: 'ord-104',
-    order_number: 'ORD-20260909-004',
-    recipient_name: 'Ольга Кузнецова',
-    destination_city: 'Казань, ПВЗ пр. Победы 12',
-    label: 'Угловая полка Травертин',
-    status: 'delivered',
-    estimated_date: '06.09.2026',
-    history: [
-      {
-        date: '06.09.2026 16:30',
-        status: 'Вручен получателю',
-        city: 'Казань',
-        description: 'Заказ успешно выдан клиенту'
-      },
-      {
-        date: '05.09.2026 10:15',
-        status: 'Прибыл в пункт выдачи',
-        city: 'Казань',
-        description: 'Готов к получению покупателем'
-      },
-      {
-        date: '03.09.2026 11:00',
-        status: 'Принят на склад',
-        city: 'Санкт-Петербург',
-        description: 'Приемка и подготовка к магистральной перевозке'
+        description: 'Готов к отправке'
       }
     ]
   }
 ];
 
-const INITIAL_REVIEWS: MarketplaceReview[] = [
-  {
-    id: 'rev-01',
-    marketplace: 'ozon',
-    product_name: 'Полка из мрамора Калакатта 50х15 см (Каменный Ручей)',
-    author: 'Мария К.',
-    rating: 5,
-    text: 'Потрясающее качество обработки камня! Фаска идеальная, рисунок прожилок превзошел ожидания. Очень надежная упаковка в деревянный ящик.',
-    pros: 'Натуральный камень, тяжелая, красивая',
-    cons: 'Нет',
-    review_date: '08.09.2026 16:45',
-    is_answered: true,
-    reply_text: 'Мария, здравствуйте! Большое спасибо за выбор мастерской «Каменный Ручей» и высокую оценку нашего труда. Пусть полочка радует вас каждый день!'
-  },
-  {
-    id: 'rev-02',
-    marketplace: 'wildberries',
-    product_name: 'Полка гранитная черная 60х20 см (Каменный Ручей)',
-    author: 'Дмитрий В.',
-    rating: 4,
-    text: 'Полка отличная, качественная. Снял одну звезду за задержку доставки на 1 день со стороны логистики маркетплейса.',
-    pros: 'Камень прочный, глубокий черный цвет',
-    cons: 'Доставка задержалась',
-    review_date: '08.09.2026 11:10',
-    is_answered: false,
-  },
-  {
-    id: 'rev-03',
-    marketplace: 'yandex',
-    product_name: 'Полка угловая Травертин 25х25 см (Каменный Ручей)',
-    author: 'Светлана Р.',
-    rating: 5,
-    text: 'Очень уютный теплый оттенок травертина. Идеально подошла под плитку в санузле!',
-    review_date: '07.09.2026 20:30',
-    is_answered: false,
-  }
-];
-
-const INITIAL_QUESTIONS: MarketplaceQuestion[] = [
-  {
-    id: 'q-01',
-    marketplace: 'ozon',
-    product_name: 'Полка из мрамора Калакатта 60х15 см (Каменный Ручей)',
-    author: 'Алексей',
-    question_text: 'Подскажите, идут ли в комплекте скрытые кронштейны для монтажа на гипсокартонную стену?',
-    question_date: '09.09.2026 12:15',
-    is_answered: false,
-  },
-  {
-    id: 'q-02',
-    marketplace: 'wildberries',
-    product_name: 'Полка гранитная черная 80х20 см (Каменный Ручей)',
-    author: 'Виктория',
-    question_text: 'Какую максимальную нагрузку выдерживает эта полка при стандартном крепеже?',
-    question_date: '08.09.2026 18:40',
-    is_answered: true,
-    answer_text: 'Здравствуйте, Виктория! При монтаже в бетонную или кирпичную стену полка «Каменный Ручей» выдерживает до 25 кг распределенной нагрузки.',
-  },
-  {
-    id: 'q-03',
-    marketplace: 'yandex',
-    product_name: 'Полка из оникса 40х15 см (Каменный Ручей)',
-    author: 'Константин',
-    question_text: 'Возможно ли заказать полочку нестандартной длины 73 см?',
-    question_date: '07.09.2026 15:20',
-    is_answered: false,
-  }
-];
+const INITIAL_REVIEWS: MarketplaceReview[] = [];
+const INITIAL_QUESTIONS: MarketplaceQuestion[] = [];
 
 type DataStoreListener = (key: string) => void;
 const listeners = new Set<DataStoreListener>();
