@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+:root {
+  --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: var(--apple-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html.dark body {
+  background-color: #0b0f19;
+  color: #f1f5f9;
+}
+
+html.light body {
+  background-color: #f5f5f7; /* Apple signature subtle warm gray */
+  color: #1d1d1f;            /* Apple deep primary text */
+}
+
+/* Apple-style Glassmorphism and Cards */
+.apple-card {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark .apple-card {
+  background-color: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+}
+
+html.light .apple-card {
+  background-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+/* Apple Segmented Controls & Pills */
+.apple-pill {
+  border-radius: 9999px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+/* Luxury Stone Accent Gradients and Badges */
+.stone-gradient-badge {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(14, 165, 233, 0.18) 50%, rgba(99, 102, 241, 0.15) 100%);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.gold-vein-badge {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.emerald-vein-badge {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+/* Custom slick dark/light scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html.dark ::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.6);
+  border-radius: 9999px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.8);
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.8);
+  border-radius: 9999px;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.9);
+}
+
+/* Print Styles for Technological Cards and Thermal Stickers */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Print A4 Workshop Tech Card */
+  body.print-tech-card #printable-tech-card,
+  body.print-tech-card #printable-tech-card * {
+    visibility: visible;
+  }
+  
+  body.print-tech-card #printable-tech-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Print Mini Thermal Stickers */
+  body.print-thermal-labels #printable-thermal-labels,
+  body.print-thermal-labels #printable-thermal-labels * {
+    visibility: visible;
+  }
+
+  body.print-thermal-labels #printable-thermal-labels {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Print Shipping Sticker */
+  body.print-sticker #printable-sticker,
+  body.print-sticker #printable-sticker * {
+    visibility: visible;
+  }
+
+  body.print-sticker #printable-sticker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100mm !important;
+    margin: 0 !important;
+    padding: 5mm !important;
+    border: 2px solid #000 !important;
+  }
+
+  .print-page-break {
+    page-break-after: always;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 0;
+  }
+}
