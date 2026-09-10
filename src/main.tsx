@@ -59,10 +59,17 @@ const ThemedApp: React.FC = () => {
           colorSuccess: '#34c759', // Apple Green
           colorWarning: '#ff9f0a', // Apple Amber
           colorError: '#ff3b30',   // Apple Red
+          colorText: isDark ? '#f1f5f9' : '#0f172a',
+          colorTextHeading: isDark ? '#f8fafc' : '#0f172a',
+          colorTextSecondary: isDark ? '#94a3b8' : '#475569',
+          colorTextTertiary: isDark ? '#64748b' : '#94a3b8',
+          colorBgBase: isDark ? '#0b0f19' : '#f8fafc',
+          colorBgContainer: isDark ? '#131b2e' : '#ffffff',
+          colorBgElevated: isDark ? '#1e293b' : '#ffffff',
+          colorBorder: isDark ? '#1e293b' : '#e2e8f0',
+          colorBorderSecondary: isDark ? '#334155' : '#f1f5f9',
           borderRadius: 12,
           fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui, sans-serif",
-          colorBgBase: isDark ? '#0f172a' : '#ffffff',
-          colorBgContainer: isDark ? '#1e293b' : '#ffffff',
         };
     }
   };

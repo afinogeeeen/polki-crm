@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Layout, Menu, Typography, Select, Tag, Avatar, Space, message, Drawer, Button, Tooltip } from 'antd';
+import { Layout, Menu, Typography, Select, Tag, Avatar, Space, message, Tooltip } from 'antd';
 import {
   DashboardOutlined,
   BookOutlined,
@@ -8,19 +8,28 @@ import {
   MessageOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  GlobalOutlined,
   UserOutlined,
-  MenuOutlined,
   SunOutlined,
   MoonOutlined,
+  AppstoreOutlined,
+  GoldOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import Orders from './pages/Orders';
 import Tracking from './pages/Tracking';
-import Messages, { MARKETPLACE_LINKS } from './pages/Messages';
+import Messages from './pages/Messages';
 import Dashboard from './pages/Dashboard';
+import Kanban from './pages/Kanban';
+import Warehouse from './pages/Warehouse';
+import Customers from './pages/Customers';
+import Salaries from './pages/Salaries';
+import FboSupplies from './pages/FboSupplies';
+import ConnectionStatusBar from './components/ConnectionStatusBar';
+import MobileBottomNav from './components/MobileBottomNav';
 import { dataStore, subscribeDataStore } from './api/dataStore';
 import type { UserProfile } from './types';
 import { useTheme } from './context/ThemeContext';
+import { DollarOutlined, RocketOutlined } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
 const { Title } = Typography;
@@ -28,22 +37,23 @@ const { Option } = Select;
 
 const App: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(dataStore.getCurrentUser());
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const users = dataStore.getUsers();
   const { toggleTheme, isDark } = useTheme();
-
   const location = useLocation();
 
-  // Close mobile drawer on route change & sync current user across tabs
+  // Sync user and unread messages across tabs and stores
   useEffect(() => {
-    setMobileDrawerOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeDataStore(() => {
+    const refreshState = () => {
       setCurrentUser(dataStore.getCurrentUser());
-    });
+      const chats = dataStore.getChats();
+      const count = chats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+      setUnreadCount(count);
+    };
+
+    refreshState();
+    const unsubscribe = subscribeDataStore(refreshState);
     return () => unsubscribe();
   }, []);
 
@@ -58,42 +68,88 @@ const App: React.FC = () => {
 
   const menuItems = [
     {
-      key: '/',
-      icon: <DashboardOutlined className="text-base" />,
-      label: <Link to="/">Дашборд</Link>,
+      type: 'group' as const,
+      label: <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">Обзор</span>,
+      children: [
+        {
+          key: '/',
+          icon: <DashboardOutlined className="text-base" />,
+          label: <Link to="/">Дашборд</Link>,
+        },
+      ],
     },
     {
-      key: '/orders',
-      icon: <BookOutlined className="text-base" />,
-      label: <Link to="/orders">Заказы</Link>,
+      type: 'group' as const,
+      label: <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">Цех и Заказы</span>,
+      children: [
+        {
+          key: '/kanban',
+          icon: <AppstoreOutlined className="text-base" />,
+          label: <Link to="/kanban">Канбан (Цех)</Link>,
+        },
+        {
+          key: '/orders',
+          icon: <BookOutlined className="text-base" />,
+          label: <Link to="/orders">Реестр заказов</Link>,
+        },
+        {
+          key: '/customers',
+          icon: <TeamOutlined className="text-base" />,
+          label: <Link to="/customers">Клиенты и LTV</Link>,
+        },
+        {
+          key: '/warehouse',
+          icon: <GoldOutlined className="text-base" />,
+          label: <Link to="/warehouse">Склад камня</Link>,
+        },
+        {
+          key: '/salaries',
+          icon: <DollarOutlined className="text-base text-emerald-500" />,
+          label: <Link to="/salaries">Зарплаты мастеров</Link>,
+        },
+      ],
     },
     {
-      key: '/tracking',
-      icon: <CarOutlined className="text-base" />,
-      label: <Link to="/tracking">СДЭК Трекинг</Link>,
-    },
-    {
-      key: '/messages',
-      icon: <MessageOutlined className="text-base" />,
-      label: <Link to="/messages">Маркетплейсы</Link>,
+      type: 'group' as const,
+      label: <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">Логистика</span>,
+      children: [
+        {
+          key: '/tracking',
+          icon: <CarOutlined className="text-base" />,
+          label: <Link to="/tracking">Доставка СДЭК</Link>,
+        },
+        {
+          key: '/fbo',
+          icon: <RocketOutlined className="text-base text-blue-500" />,
+          label: <Link to="/fbo">Формирование FBO</Link>,
+        },
+        {
+          key: '/messages',
+          icon: <MessageOutlined className="text-base" />,
+          label: <Link to="/messages">Маркетплейсы</Link>,
+        },
+      ],
     },
   ];
 
   const getPageTitle = (pathname: string) => {
     switch (pathname) {
       case '/': return 'Аналитика и дашборд';
-      case '/orders': return 'Индивидуальные заказы';
+      case '/kanban': return 'Канбан-доска производства';
+      case '/orders': return 'Реестр заказов полок';
+      case '/customers': return 'База клиентов и LTV';
+      case '/warehouse': return 'Склад камня и слэбов';
+      case '/salaries': return 'Учет выработки и зарплат мастеров';
       case '/tracking': return 'Отслеживание доставок СДЭК';
+      case '/fbo': return 'Формирование FBO / FBW поставок';
       case '/messages': return 'Единое окно маркетплейсов';
       default: return 'CRM «Каменный Ручей»';
     }
   };
 
+
   const siderBg = isDark ? '#0b0f19' : '#ffffff';
   const siderBorder = isDark ? 'border-slate-800' : 'border-slate-200';
-  const brandGradient = isDark 
-    ? 'from-blue-400 via-sky-300 to-emerald-400' 
-    : 'from-blue-600 via-indigo-600 to-emerald-600';
 
   const siderContent = (
     <div className={`flex flex-col h-full ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
@@ -103,14 +159,15 @@ const App: React.FC = () => {
           ? 'bg-slate-900/80 border-slate-800 shadow-sm' 
           : 'bg-slate-50 border-slate-200/80 shadow-sm'
       }`}>
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-          <span className={`text-sm font-bold bg-gradient-to-r ${brandGradient} bg-clip-text text-transparent tracking-wide text-center uppercase`}>
-            {collapsed ? 'ПОЛКИ' : 'КАМЕННЫЙ РУЧЕЙ'}
-          </span>
+        <div className="flex items-center justify-center gap-2">
+          <img 
+            src="/polki-crm/logo.png" 
+            alt="Logo" 
+            className={`transition-all duration-300 object-contain ${collapsed ? 'h-7' : 'h-11'}`} 
+          />
         </div>
         {!collapsed && (
-          <span className={`text-[10px] mt-1 tracking-wider uppercase font-semibold ${
+          <span className={`text-[10px] mt-2 tracking-wider uppercase font-semibold text-center ${
             isDark ? 'text-slate-400' : 'text-slate-500'
           }`}>
             Мастерская камня · CRM
@@ -127,96 +184,29 @@ const App: React.FC = () => {
           className="border-none bg-transparent font-medium"
         />
       </div>
-
-      {!collapsed && (
-        <div className={`p-3 m-3 mt-auto shrink-0 rounded-2xl border text-xs space-y-2.5 ${
-          isDark 
-            ? 'bg-slate-900/70 border-slate-800 text-slate-300' 
-            : 'bg-slate-50 border-slate-200 text-slate-700'
-        }`}>
-          <div>
-            <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
-            }`}>
-              Сайт мастерской:
-            </div>
-            <a 
-              href="https://polkistone.ru/" 
-              target="_blank" 
-              rel="noreferrer" 
-              className="text-emerald-500 hover:text-emerald-400 flex items-center gap-1 font-semibold truncate"
-            >
-              <GlobalOutlined /> polkistone.ru
-            </a>
-          </div>
-
-          <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-            <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
-            }`}>
-              Витрины маркетплейсов:
-            </div>
-            <div className="flex flex-col gap-1 text-[11px]">
-              {Object.entries(MARKETPLACE_LINKS).map(([key, item]) => (
-                <a
-                  key={key}
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`flex items-center justify-between py-1 px-2 rounded-lg transition font-medium ${
-                    isDark 
-                      ? 'text-slate-300 hover:bg-slate-800/80 hover:text-white' 
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  <span className="truncate">{item.name}</span>
-                  <span 
-                    className="text-[9px] px-1.5 py-0.5 rounded font-bold text-white shrink-0 ml-1 shadow-sm" 
-                    style={{ backgroundColor: item.color }}
-                  >
-                    магазин
-                  </span>
-                </a>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 
   return (
     <Layout className={`min-h-screen ${isDark ? 'bg-[#0b0f19]' : 'bg-[#f5f5f7]'}`}>
-      {/* Desktop Sider */}
+      {/* Desktop Sider (Hidden on Mobile, replaced by Bottom Navigation Bar) */}
       <Sider 
         trigger={null} 
         collapsible 
         collapsed={collapsed} 
-        className={`hidden md:flex flex-col h-screen sticky top-0 border-r ${siderBorder} z-30`} 
+        className={`hidden md:flex flex-col border-r ${siderBorder} z-30 sticky top-0 h-screen`} 
         width={230}
         style={{ background: siderBg }}
       >
         {siderContent}
       </Sider>
 
-      {/* Mobile Drawer */}
-      <Drawer
-        placement="left"
-        onClose={() => setMobileDrawerOpen(false)}
-        open={mobileDrawerOpen}
-        styles={{ 
-          body: { padding: 0, background: siderBg, height: '100%' },
-          header: { display: 'none' } 
-        }}
-        width={270}
-      >
-        {siderContent}
-      </Drawer>
-
       <Layout className={`w-full min-w-0 ${isDark ? 'bg-[#0b0f19]' : 'bg-[#f5f5f7]'}`}>
+        {/* App Header (Clean native-feel header with iOS notch safe area) */}
         <Header 
-          className="flex items-center justify-between sticky top-0 z-20 px-3 sm:px-6 h-16 border-b transition-colors"
+          className="flex items-center justify-between sticky top-0 z-30 px-3 sm:px-6 border-b transition-colors pt-[env(safe-area-inset-top)]"
           style={{ 
+            height: 'calc(3.75rem + env(safe-area-inset-top, 0px))',
             padding: '0 16px',
             backgroundColor: isDark ? 'rgba(11, 15, 25, 0.95)' : 'rgba(255, 255, 255, 0.95)',
             borderBottomColor: isDark ? '#1e293b' : '#e2e8f0',
@@ -224,7 +214,7 @@ const App: React.FC = () => {
             backdropFilter: 'blur(16px)',
           }}
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             {/* Desktop collapse toggle */}
             <div
               className={`cursor-pointer text-lg hover:text-blue-500 transition-colors hidden md:flex items-center justify-center w-8 h-8 rounded-lg ${
@@ -235,25 +225,25 @@ const App: React.FC = () => {
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </div>
 
-            {/* Mobile hamburger button */}
-            <Button
-              type="text"
-              icon={<MenuOutlined />}
-              onClick={() => setMobileDrawerOpen(true)}
-              className="text-base md:hidden p-1.5 h-auto rounded-lg"
+            {/* Mobile App Brand Logo */}
+            <img 
+              src="/polki-crm/logo.png" 
+              alt="Logo" 
+              className="h-7 w-auto object-contain md:hidden shrink-0" 
             />
 
             <Title 
               level={4} 
               style={{ margin: 0 }}
-              className="text-base sm:text-lg font-semibold tracking-tight truncate"
+              className="text-sm sm:text-lg font-bold tracking-tight truncate"
             >
               {getPageTitle(location.pathname)}
             </Title>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
-
+          <div className="flex items-center gap-2 shrink-0">
+            {/* API Connection Health Monitor Popover */}
+            <ConnectionStatusBar mode="header" />
 
             {/* Apple-style Theme Switcher */}
             <Tooltip title={isDark ? 'Включить светлую тему' : 'Включить темную тему'}>
@@ -271,8 +261,8 @@ const App: React.FC = () => {
               </button>
             </Tooltip>
 
-            {/* User Profile Selector (Apple Capsule Style) */}
-            <div className={`flex items-center gap-2 rounded-full px-3 py-1 border transition shadow-sm hidden md:flex ${
+            {/* Desktop User Profile Selector */}
+            <div className={`items-center gap-2 rounded-full px-3 py-1 border transition shadow-sm hidden md:flex ${
               isDark 
                 ? 'bg-slate-800/90 border-slate-700' 
                 : 'bg-white border-slate-300'
@@ -312,33 +302,27 @@ const App: React.FC = () => {
                 ))}
               </Select>
             </div>
-
-
-            {/* External website link */}
-            <a 
-              href="https://polkistone.ru/" 
-              target="_blank" 
-              rel="noreferrer" 
-              className={`text-xs font-semibold hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition ${
-                isDark 
-                  ? 'bg-slate-800/90 border-slate-700 text-emerald-400 hover:border-emerald-500' 
-                  : 'bg-white border-slate-300 text-emerald-600 hover:border-emerald-500 shadow-sm'
-              }`}
-            >
-              <GlobalOutlined /> polkistone.ru
-            </a>
           </div>
         </Header>
 
-        <Content className="p-3 sm:p-6 overflow-x-hidden min-h-[calc(100vh-64px)]">
+        {/* Content Area with Mobile Bottom Nav Clearance */}
+        <Content className="p-3 sm:p-6 overflow-x-hidden min-h-[calc(100vh-64px)] pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/kanban" element={<Kanban />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/warehouse" element={<Warehouse />} />
+            <Route path="/salaries" element={<Salaries />} />
             <Route path="/tracking" element={<Tracking />} />
+            <Route path="/fbo" element={<FboSupplies />} />
             <Route path="/messages" element={<Messages />} />
           </Routes>
         </Content>
       </Layout>
+
+      {/* Native Mobile Bottom Navigation Bar (Tab Bar) with Sheet */}
+      <MobileBottomNav unreadChatsCount={unreadCount} />
     </Layout>
   );
 };

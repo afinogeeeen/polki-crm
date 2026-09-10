@@ -19,7 +19,9 @@ import {
   Divider, 
   Tooltip,
   Upload,
-  Image
+  Image,
+  Segmented,
+  Dropdown
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -39,16 +41,20 @@ import {
   CrownOutlined,
   CalculatorOutlined,
   PrinterOutlined,
-  TagOutlined,
-  ScissorOutlined
+  CarOutlined,
+  ScissorOutlined,
+  CommentOutlined,
+  DownOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { UploadFile } from 'antd';
 import type { Order, OrderItem, OrderStatus, ContactChannel } from '../types';
 import { dataStore, subscribeDataStore } from '../api/dataStore';
 import { StoneCalculatorModal } from '../components/StoneCalculatorModal';
 import type { CalculationResult } from '../components/StoneCalculatorModal';
 import { OrderTechCardModal } from '../components/OrderTechCardModal';
-import { OrderStickerModal } from '../components/OrderStickerModal';
+import { CdekShippingModal } from '../components/CdekShippingModal';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -86,9 +92,12 @@ export const CHANNEL_CONFIG: Record<ContactChannel, { label: string; color: stri
   email: { label: 'Имейл', color: '#6366f1', icon: <MailOutlined /> },
 };
 
+export type QuickSegment = 'all' | 'active' | 'in_delivery' | 'completed' | 'attention';
+
 const Orders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [quickSegment, setQuickSegment] = useState<QuickSegment>('all');
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
@@ -105,10 +114,28 @@ const Orders: React.FC = () => {
   const [activeCalcItemIndex, setActiveCalcItemIndex] = useState<number | null>(null);
   const [techCardOrder, setTechCardOrder] = useState<Order | null>(null);
   const [techCardDefaultView, setTechCardDefaultView] = useState<'full' | 'thermal'>('full');
-  const [stickerOrder, setStickerOrder] = useState<Order | null>(null);
+  const [cdekShippingOrder, setCdekShippingOrder] = useState<Order | null>(null);
 
   // Multi-item shelves in current order
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [searchParams] = useSearchParams();
+
+  // URL Deep-linking: auto-filter and open order modal if passed from Kanban or other screens
+  useEffect(() => {
+    const searchParam = searchParams.get('search');
+    const openId = searchParams.get('openId');
+    if (searchParam) {
+      setSearchText(searchParam);
+      setQuickSegment('all');
+      setStatusFilter('all');
+    }
+    if (openId && orders.length > 0) {
+      const found = orders.find(o => o.id === openId || o.order_number === openId);
+      if (found) {
+        handleOpenEditModal(found);
+      }
+    }
+  }, [searchParams, orders]);
 
   const currentUser = dataStore.getCurrentUser();
   const users = dataStore.getUsers();
@@ -279,23 +306,76 @@ const Orders: React.FC = () => {
     setFileList(processedList);
   };
 
+  // Quick segment counts
+  const segmentCounts = useMemo(() => {
+    return {
+      all: orders.length,
+      active: orders.filter(o => ['new', 'waiting_prepayment', 'in_production', 'ready_to_ship'].includes(o.status)).length,
+      in_delivery: orders.filter(o => o.status === 'in_delivery' || (!!o.tracking_number && !['completed', 'delivered', 'cancelled'].includes(o.status))).length,
+      completed: orders.filter(o => ['completed', 'delivered'].includes(o.status)).length,
+      attention: orders.filter(o => {
+        if (o.status === 'cancelled') return false;
+        const unpaidPrepayment = !o.prepayment_received || o.status === 'waiting_prepayment';
+        const unpaidRemaining = !o.remaining_paid && (o.total_price > o.prepayment_amount) && ['ready_to_ship', 'in_delivery', 'delivered'].includes(o.status);
+        return unpaidPrepayment || unpaidRemaining;
+      }).length,
+    };
+  }, [orders]);
+
   // Filtered list
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = 
-      order.order_number.toLowerCase().includes(searchText.toLowerCase()) ||
-      order.client_name.toLowerCase().includes(searchText.toLowerCase()) ||
-      (order.stone_type && order.stone_type.toLowerCase().includes(searchText.toLowerCase())) ||
-      (order.client_contact && order.client_contact.toLowerCase().includes(searchText.toLowerCase())) ||
-      (order.polisher && order.polisher.toLowerCase().includes(searchText.toLowerCase())) ||
-      (order.accepted_by && order.accepted_by.toLowerCase().includes(searchText.toLowerCase())) ||
-      (order.tracking_number && order.tracking_number.includes(searchText));
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      // 1. Quick Segment
+      if (quickSegment === 'active') {
+        if (!['new', 'waiting_prepayment', 'in_production', 'ready_to_ship'].includes(order.status)) return false;
+      } else if (quickSegment === 'in_delivery') {
+        const isDelivery = order.status === 'in_delivery' || (!!order.tracking_number && !['completed', 'delivered', 'cancelled'].includes(order.status));
+        if (!isDelivery) return false;
+      } else if (quickSegment === 'completed') {
+        if (!['completed', 'delivered'].includes(order.status)) return false;
+      } else if (quickSegment === 'attention') {
+        if (order.status === 'cancelled') return false;
+        const unpaidPrepayment = !order.prepayment_received || order.status === 'waiting_prepayment';
+        const unpaidRemaining = !order.remaining_paid && (order.total_price > order.prepayment_amount) && ['ready_to_ship', 'in_delivery', 'delivered'].includes(order.status);
+        if (!unpaidPrepayment && !unpaidRemaining) return false;
+      }
 
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesChannel = channelFilter === 'all' || order.channel === channelFilter;
-    const matchesPolisher = polisherFilter === 'all' || order.polisher === polisherFilter;
+      // 2. Status dropdown
+      if (statusFilter !== 'all' && order.status !== statusFilter) {
+        return false;
+      }
 
-    return matchesSearch && matchesStatus && matchesChannel && matchesPolisher;
-  });
+      // 3. Channel filter
+      if (channelFilter !== 'all' && order.channel !== channelFilter) {
+        return false;
+      }
+
+      // 4. Polisher filter
+      if (polisherFilter !== 'all' && order.polisher !== polisherFilter) {
+        return false;
+      }
+
+      // 5. Search text filter
+      if (searchText.trim()) {
+        const q = searchText.toLowerCase();
+        const matchNumber = order.order_number.toLowerCase().includes(q);
+        const matchClient = order.client_name.toLowerCase().includes(q);
+        const matchStone = !!order.stone_type && order.stone_type.toLowerCase().includes(q);
+        const matchPhone = !!order.client_contact && order.client_contact.toLowerCase().includes(q);
+        const matchClientPhone = !!order.client_phone && order.client_phone.toLowerCase().includes(q);
+        const matchCity = !!order.delivery_city && order.delivery_city.toLowerCase().includes(q);
+        const matchPolisher = !!order.polisher && order.polisher.toLowerCase().includes(q);
+        const matchAccepted = !!order.accepted_by && order.accepted_by.toLowerCase().includes(q);
+        const matchTrack = !!order.tracking_number && order.tracking_number.toLowerCase().includes(q);
+
+        if (!matchNumber && !matchClient && !matchStone && !matchPhone && !matchClientPhone && !matchCity && !matchPolisher && !matchAccepted && !matchTrack) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [orders, quickSegment, statusFilter, channelFilter, polisherFilter, searchText]);
 
   const [copiedTrack, setCopiedTrack] = useState<string | null>(null);
 
@@ -315,190 +395,69 @@ const Orders: React.FC = () => {
 
   const columns = [
     {
-      title: '№ Заказа',
-      dataIndex: 'order_number',
-      key: 'order_number',
-      width: 140,
-      render: (text: string, record: Order) => (
-        <div>
-          <span className="font-semibold text-blue-400 block">{text}</span>
-          <span className="text-[11px] text-slate-400">
-            {new Date(record.created_at).toLocaleDateString('ru-RU')}
-          </span>
-        </div>
-      ),
-    },
-    {
-      title: 'Клиент и канал связи',
-      dataIndex: 'client_name',
-      key: 'client_name',
-      width: 200,
-      render: (name: string, record: Order) => {
-        const ch = record.channel ? CHANNEL_CONFIG[record.channel] : CHANNEL_CONFIG.telegram;
-        return (
-          <div>
-            <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
-              <span>{name}</span>
-              <Tag color={ch.color} className="text-[10px] py-0 px-1.5 m-0 font-normal">
-                {ch.icon && <span className="mr-1">{ch.icon}</span>}
-                {ch.label}
-              </Tag>
-            </div>
-            {record.client_phone && (
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{record.client_phone}</div>
-            )}
-            {record.client_contact && (
-              <div className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-[180px]" title={record.client_contact}>
-                {record.client_contact}
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: 'Камень и фото изделия',
-      key: 'product',
-      width: 230,
-      render: (_: unknown, record: Order) => {
-        const isLux = isLuxuryStone(record.stone_type);
-        return (
-          <div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-semibold text-slate-900 dark:text-slate-200">{record.stone_type || 'Камень не указан'}</span>
-              {isLux && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full emerald-vein-badge text-emerald-700 dark:text-emerald-300 font-medium inline-flex items-center gap-0.5">
-                  <CrownOutlined className="text-[9px]" /> премиум камень
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-blue-600 dark:text-cyan-400 font-mono mt-0.5">{record.dimensions}</div>
-            {record.product_description && (
-              <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[210px] mt-0.5" title={record.product_description}>
-                {record.product_description}
-              </div>
-            )}
-            {record.photos && record.photos.length > 0 && (
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <Image.PreviewGroup>
-                  {record.photos.map((url, i) => (
-                    <Image
-                      key={i}
-                      src={url}
-                      width={38}
-                      height={38}
-                      className="rounded-lg object-cover border border-slate-300 dark:border-slate-700 cursor-pointer shadow-sm hover:opacity-90"
-                      fallback="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='38' height='38'><rect width='38' height='38' fill='%23334155'/></svg>"
-                    />
-                  ))}
-                </Image.PreviewGroup>
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      title: 'Сотрудники',
-      key: 'staff',
-      width: 190,
+      title: 'Заказ и статус',
+      key: 'order_and_status',
+      width: 175,
       render: (_: unknown, record: Order) => (
-        <div className="text-xs space-y-1">
-          <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
-            <UserOutlined className="text-blue-500" />
-            <span className="text-slate-500 dark:text-slate-400">Принял:</span>
-            <span className="font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[120px]">{record.accepted_by || 'Не указан'}</span>
-          </div>
-          <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
-            <ToolOutlined className="text-amber-500" />
-            <span className="text-slate-500 dark:text-slate-400">Мастер:</span>
-            <span className="font-semibold text-amber-600 dark:text-amber-300 truncate max-w-[120px]">
-              {record.polisher || 'Не назначен'}
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between gap-1">
+            <button
+              type="button"
+              onClick={() => handleOpenEditModal(record)}
+              className="font-bold text-blue-600 dark:text-blue-400 hover:underline text-left text-sm cursor-pointer p-0 bg-transparent border-0"
+              title="Открыть редактирование заказа"
+            >
+              {record.order_number}
+            </button>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">
+              {new Date(record.created_at).toLocaleDateString('ru-RU')}
             </span>
           </div>
-        </div>
-      ),
-    },
-    {
-      title: 'Расчет и оплата',
-      key: 'payment',
-      width: 190,
-      render: (_: unknown, record: Order) => {
-        const remaining = Math.max(0, record.total_price - record.prepayment_amount);
-        const percentPaid = record.total_price > 0 
-          ? Math.round(((record.prepayment_received ? record.prepayment_amount : 0) + (record.remaining_paid ? remaining : 0)) / record.total_price * 100)
-          : 0;
 
-        return (
-          <div className="space-y-1 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500 dark:text-slate-400">Итого:</span>
-              <strong className="text-slate-900 dark:text-slate-100 font-mono text-sm">{record.total_price.toLocaleString('ru-RU')} ₽</strong>
-            </div>
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400">Аванс: {record.prepayment_amount.toLocaleString('ru-RU')} ₽</span>
-              {record.prepayment_received ? (
-                <Tag color="success" className="m-0 text-[9px] py-0 px-1">Оплачен</Tag>
-              ) : (
-                <Tag color="warning" className="m-0 text-[9px] py-0 px-1">Ждем</Tag>
-              )}
-            </div>
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-slate-600 dark:text-slate-400">Остаток: {remaining.toLocaleString('ru-RU')} ₽</span>
-              {record.remaining_paid ? (
-                <Tag color="success" className="m-0 text-[9px] py-0 px-1">Закрыт</Tag>
-              ) : (
-                <Tag color="default" className="m-0 text-[9px] py-0 px-1">Доплата</Tag>
-              )}
-            </div>
-            {/* Quick mini-indicator of payment progress */}
-            <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1">
-              <div 
-                className={`h-full transition-all duration-300 ${percentPaid === 100 ? 'bg-emerald-400' : 'bg-blue-400'}`} 
-                style={{ width: `${percentPaid}%` }} 
-              />
-            </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Dropdown
+              menu={{
+                items: Object.entries(statusLabels).map(([key, label]) => ({
+                  key,
+                  label: (
+                    <div className="flex items-center gap-2 py-0.5">
+                      <Tag color={statusColors[key as OrderStatus] || 'default'} className="m-0 text-xs">
+                        {label}
+                      </Tag>
+                    </div>
+                  ),
+                  onClick: () => handleQuickStatusChange(record.id, key as OrderStatus),
+                })),
+              }}
+              trigger={['click']}
+            >
+              <Tag
+                color={statusColors[record.status] || 'default'}
+                className="cursor-pointer hover:opacity-85 transition m-0 text-xs px-2 py-0.5 rounded-md font-medium inline-flex items-center gap-1 border-0 shadow-sm"
+              >
+                <span>{statusLabels[record.status]}</span>
+                <DownOutlined className="text-[9px] opacity-60 ml-0.5" />
+              </Tag>
+            </Dropdown>
           </div>
-        );
-      },
-    },
-    {
-      title: 'Статус и СДЭК',
-      key: 'status',
-      width: 180,
-      render: (_: unknown, record: Order) => (
-        <div>
-          <Select
-            value={record.status}
-            size="small"
-            style={{ width: '100%' }}
-            onChange={(val) => handleQuickStatusChange(record.id, val as OrderStatus)}
-          >
-            {Object.entries(statusLabels).map(([key, label]) => (
-              <Option key={key} value={key}>
-                <Tag color={statusColors[key as OrderStatus] || 'default'} className="mr-0">
-                  {label}
-                </Tag>
-              </Option>
-            ))}
-          </Select>
+
           {record.tracking_number && (
-            <div className="mt-1.5 flex items-center gap-1">
+            <div className="pt-0.5">
               <Tooltip title="Нажмите, чтобы скопировать трек СДЭК">
                 <button
                   type="button"
                   onClick={(e) => record.tracking_number && handleCopyTracking(record.tracking_number, e)}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-[11px] text-blue-700 dark:text-cyan-300 font-mono cursor-pointer transition active:scale-95"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-700 dark:text-cyan-300 font-mono cursor-pointer transition active:scale-95"
                 >
                   {copiedTrack === record.tracking_number ? (
                     <>
-                      <CheckOutlined className="text-emerald-500 dark:text-emerald-400" />
-                      <span className="text-emerald-600 dark:text-emerald-400">Скопировано!</span>
+                      <CheckOutlined className="text-emerald-500 text-[10px]" />
+                      <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">Скопирован</span>
                     </>
                   ) : (
                     <>
-                      <CopyOutlined className="text-slate-400" />
-                      <span>{record.tracking_number}</span>
+                      <CopyOutlined className="text-slate-400 text-[10px]" />
+                      <span>СДЭК: {record.tracking_number}</span>
                     </>
                   )}
                 </button>
@@ -509,49 +468,265 @@ const Orders: React.FC = () => {
       ),
     },
     {
-      title: 'Действия и бланки',
-      key: 'action',
-      width: 140,
+      title: 'Клиент',
+      key: 'client',
+      width: 220,
+      render: (_: unknown, record: Order) => {
+        const ch = record.channel ? CHANNEL_CONFIG[record.channel] : CHANNEL_CONFIG.telegram;
+        const customer = record.customer_id ? dataStore.getCustomerById(record.customer_id) : undefined;
+        const isRepeat = (customer && customer.orders_count > 1) || record.notes?.includes('Повторный');
+        const isVip = customer?.loyalty_tier === 'vip' || customer?.loyalty_tier === 'designer';
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                {record.client_name}
+              </span>
+              {isVip && (
+                <Tag color="gold" className="text-[9px] py-0 px-1 m-0 font-bold border-amber-300">
+                  ★ VIP
+                </Tag>
+              )}
+              {!isVip && isRepeat && (
+                <Tag color="cyan" className="text-[9px] py-0 px-1 m-0 font-bold">
+                  ★ Повторный
+                </Tag>
+              )}
+              <Tag color={ch.color} className="text-[10px] py-0 px-1.5 m-0 font-normal inline-flex items-center gap-1">
+                {ch.icon}
+                <span>{ch.label}</span>
+              </Tag>
+            </div>
+
+            <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
+              {record.delivery_city && (
+                <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                  <EnvironmentOutlined className="text-slate-400 text-[10px]" />
+                  г. {record.delivery_city}
+                </span>
+              )}
+              {(record.client_phone || record.client_contact) && (
+                <span className="inline-flex items-center gap-1 font-mono text-slate-600 dark:text-slate-300">
+                  <PhoneOutlined className="text-slate-400 text-[10px]" />
+                  {record.client_phone || record.client_contact}
+                </span>
+              )}
+            </div>
+
+            {record.chat_id && (
+              <div className="pt-0.5">
+                <Link
+                  to={`/messages?chatId=${record.chat_id}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900 transition hover:bg-blue-100 dark:hover:bg-blue-900/60"
+                >
+                  <CommentOutlined className="text-[10px]" />
+                  <span>Чат маркетплейса</span>
+                </Link>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Изделие',
+      key: 'product',
+      width: 220,
+      render: (_: unknown, record: Order) => {
+        const isLux = isLuxuryStone(record.stone_type);
+        const photos = record.photos || [];
+        const hasPhotos = photos.length > 0;
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs sm:text-sm">
+                {record.stone_type || 'Камень не указан'}
+              </span>
+              {isLux && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full emerald-vein-badge text-emerald-700 dark:text-emerald-300 font-medium inline-flex items-center gap-0.5">
+                  <CrownOutlined className="text-[9px]" /> премиум
+                </span>
+              )}
+            </div>
+
+            {record.dimensions && (
+              <div className="text-xs text-blue-600 dark:text-cyan-400 font-mono">
+                {record.dimensions}
+              </div>
+            )}
+
+            {record.product_description && (
+              <div 
+                className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[210px]" 
+                title={record.product_description}
+              >
+                {record.product_description}
+              </div>
+            )}
+
+            {hasPhotos && (
+              <div className="pt-0.5 flex items-center gap-2">
+                <Image.PreviewGroup>
+                  <div className="relative inline-block cursor-pointer group">
+                    <Image
+                      src={photos[0]}
+                      width={32}
+                      height={32}
+                      className="rounded-lg object-cover border border-slate-200 dark:border-slate-700 shadow-sm transition group-hover:opacity-85"
+                      fallback="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><rect width='32' height='32' fill='%23334155'/></svg>"
+                    />
+                    {photos.length > 1 && (
+                      <span className="absolute -bottom-1 -right-1 bg-slate-800 text-slate-100 dark:bg-slate-100 dark:text-slate-900 text-[9px] font-bold px-1 rounded-full border border-white dark:border-slate-900 leading-tight">
+                        +{photos.length - 1}
+                      </span>
+                    )}
+                  </div>
+                  {photos.slice(1).map((url, i) => (
+                    <Image key={i} src={url} style={{ display: 'none' }} />
+                  ))}
+                </Image.PreviewGroup>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  📷 {photos.length} фото
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Оплата',
+      key: 'payment',
+      width: 160,
+      render: (_: unknown, record: Order) => {
+        const remaining = Math.max(0, record.total_price - record.prepayment_amount);
+        const isFullyPaid = record.remaining_paid || (record.prepayment_received && record.prepayment_amount >= record.total_price);
+        const isPrepaid = record.prepayment_received;
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <strong className="text-slate-900 dark:text-slate-100 font-mono text-sm">
+                {record.total_price.toLocaleString('ru-RU')} ₽
+              </strong>
+              {isFullyPaid ? (
+                <Tag color="success" className="m-0 text-[10px] py-0 px-1.5 font-medium border-0">
+                  Оплачен
+                </Tag>
+              ) : isPrepaid ? (
+                <Tag color="warning" className="m-0 text-[10px] py-0 px-1.5 font-medium border-0">
+                  Аванс
+                </Tag>
+              ) : (
+                <Tag color="default" className="m-0 text-[10px] py-0 px-1.5 font-medium text-slate-500 border-0">
+                  Ожидание
+                </Tag>
+              )}
+            </div>
+
+            <div className="text-[11px]">
+              {isFullyPaid ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  Оплачен 100%
+                </span>
+              ) : isPrepaid ? (
+                <span className="text-slate-500 dark:text-slate-400">
+                  Остаток: <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">{remaining.toLocaleString('ru-RU')} ₽</span>
+                </span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400">
+                  Аванс: <span className="font-semibold font-mono">{record.prepayment_amount.toLocaleString('ru-RU')} ₽</span>
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Цех и мастер',
+      key: 'staff',
+      width: 170,
       render: (_: unknown, record: Order) => (
-        <Space size="small">
-          <Tooltip title="Печать техкарты цеха (A4)">
+        <div className="text-xs space-y-1">
+          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+            <ToolOutlined className="text-amber-500 text-[11px] shrink-0" />
+            <span className="text-slate-500 dark:text-slate-400">Мастер:</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[110px]" title={record.polisher || 'Не назначен'}>
+              {record.polisher || '—'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+            <UserOutlined className="text-blue-500 text-[11px] shrink-0" />
+            <span className="text-slate-500 dark:text-slate-400">Принял:</span>
+            <span className="text-slate-600 dark:text-slate-300 truncate max-w-[110px]" title={record.accepted_by || 'Не указан'}>
+              {record.accepted_by || '—'}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Действия',
+      key: 'action',
+      width: 135,
+      render: (_: unknown, record: Order) => (
+        <Space size={2}>
+          {/* 1. Стикер для резчика */}
+          <Tooltip title="Стикер для резчика (на заготовку)">
             <Button 
               type="text" 
-              icon={<PrinterOutlined />} 
-              onClick={() => {
-                setTechCardDefaultView('full');
-                setTechCardOrder(record);
-              }} 
-              className="text-amber-400 hover:text-amber-300 px-1" 
-            />
-          </Tooltip>
-          <Tooltip title="Печать мини-стикеров для резчика (термопринтер на каждое изделие)">
-            <Button 
-              type="text" 
+              size="small"
               icon={<ScissorOutlined />} 
               onClick={() => {
                 setTechCardDefaultView('thermal');
                 setTechCardOrder(record);
               }} 
-              className="text-orange-400 hover:text-orange-300 px-1" 
+              className="text-slate-600 dark:text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 p-1" 
             />
           </Tooltip>
-          <Tooltip title="Печать термоэтикетки со штрихкодом (СДЭК/МП)">
+
+          {/* 2. Техкарта А4 */}
+          <Tooltip title="Техкарта и паспорт изделия (А4)">
             <Button 
               type="text" 
-              icon={<TagOutlined />} 
-              onClick={() => setStickerOrder(record)} 
-              className="text-yellow-400 hover:text-yellow-300 px-1" 
+              size="small"
+              icon={<PrinterOutlined />} 
+              onClick={() => {
+                setTechCardDefaultView('full');
+                setTechCardOrder(record);
+              }} 
+              className="text-slate-600 dark:text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 p-1" 
             />
           </Tooltip>
-          <Tooltip title="Редактировать заказ">
+
+          {/* 3. ШК СДЭК через API */}
+          <Tooltip title={record.tracking_number ? `ШК СДЭК: ${record.tracking_number} (Печать)` : "Создать накладную и ШК СДЭК"}>
             <Button 
               type="text" 
+              size="small"
+              icon={<CarOutlined />} 
+              onClick={() => setCdekShippingOrder(record)} 
+              className={`p-1 ${
+                record.tracking_number 
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 font-bold' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+              }`} 
+            />
+          </Tooltip>
+
+          <Tooltip title="Редактировать">
+            <Button 
+              type="text" 
+              size="small"
               icon={<EditOutlined />} 
               onClick={() => handleOpenEditModal(record)} 
-              className="text-blue-400 hover:text-blue-300 px-1" 
+              className="text-blue-500 hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 p-1" 
             />
           </Tooltip>
+
           <Popconfirm
             title="Удалить заказ?"
             description="Это действие необратимо."
@@ -559,7 +734,9 @@ const Orders: React.FC = () => {
             cancelText="Отмена"
             onConfirm={() => handleDeleteOrder(record.id)}
           >
-            <Button type="text" icon={<DeleteOutlined />} danger className="px-1" />
+            <Tooltip title="Удалить заказ">
+              <Button type="text" size="small" icon={<DeleteOutlined />} danger className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/40" />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -578,20 +755,20 @@ const Orders: React.FC = () => {
             Учет заказчиков, назначение полировщиков, фиксация принявшего сотрудника и фото изделий
           </Text>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
           <Button 
             icon={<CalculatorOutlined />} 
             size="large"
-            className="border-emerald-500/80 text-emerald-400 bg-emerald-950/20 hover:!border-emerald-400 hover:!text-emerald-300 font-medium"
+            className="border-emerald-500/80 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 font-medium rounded-xl"
             onClick={() => setIsCalcOpen(true)}
           >
-            Калькулятор полки
+            Калькулятор
           </Button>
           <Button 
             type="primary" 
             icon={<PlusOutlined />} 
             size="large"
-            className="bg-blue-600 hover:bg-blue-500 font-medium"
+            className="bg-blue-600 hover:bg-blue-500 font-medium rounded-xl"
             onClick={handleOpenCreateModal}
           >
             Новый заказ
@@ -599,80 +776,161 @@ const Orders: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters bar */}
-      <Card className="apple-card rounded-2xl" styles={{ body: { padding: '16px' } }}>
-        <Row gutter={[12, 12]} align="middle">
-          <Col xs={24} md={8} lg={7}>
-            <Input
-              placeholder="Поиск по клиенту, камню, мастеру, треку..."
-              prefix={<SearchOutlined className="text-slate-400" />}
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-              allowClear
-              className="w-full"
-            />
-          </Col>
-          <Col xs={24} sm={8} md={5} lg={5}>
-            <Select
-              value={channelFilter}
-              onChange={val => setChannelFilter(val)}
-              className="w-full"
-            >
-              <Option value="all">Все каналы ({orders.length})</Option>
-              {Object.entries(CHANNEL_CONFIG).map(([key, config]) => (
-                <Option key={key} value={key}>
-                  {config.label} ({orders.filter(o => o.channel === key).length})
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col xs={24} sm={8} md={5} lg={6}>
-            <Select
-              value={polisherFilter}
-              onChange={val => setPolisherFilter(val)}
-              className="w-full"
-            >
-              <Option value="all">Все исполнители / мастера</Option>
-              {uniquePolishers.map(p => (
-                <Option key={p} value={p}>
-                  {p} ({orders.filter(o => o.polisher === p).length})
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col xs={24} sm={8} md={6} lg={6}>
-            <Select
-              value={statusFilter}
-              onChange={val => setStatusFilter(val)}
-              className="w-full"
-            >
-              <Option value="all">Все статусы ({orders.length})</Option>
-              {Object.entries(statusLabels).map(([key, label]) => (
-                <Option key={key} value={key}>
-                  {label} ({orders.filter(o => o.status === key).length})
-                </Option>
-              ))}
-            </Select>
-          </Col>
-        </Row>
-      </Card>
 
-      {/* Table */}
-      <Card className="apple-card rounded-2xl overflow-hidden" styles={{ body: { padding: 0 } }}>
-        <Table 
-          columns={columns} 
-          dataSource={filteredOrders} 
-          rowKey="id" 
-          loading={loading}
-          pagination={{ pageSize: 8, showSizeChanger: true, responsive: true }}
-          scroll={{ x: 1050 }}
-        />
-      </Card>
+          {/* Quick Segment Tabs */}
+          <div className="flex items-center justify-between gap-3 overflow-x-auto pb-1">
+            <Segmented
+              value={quickSegment}
+              onChange={val => {
+                setQuickSegment(val as QuickSegment);
+                setStatusFilter('all');
+              }}
+              options={[
+                {
+                  value: 'all',
+                  label: (
+                    <span className="flex items-center gap-1.5 py-1 px-1 text-xs sm:text-sm font-medium">
+                      <span>Все заказы</span>
+                      <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono">
+                        {segmentCounts.all}
+                      </span>
+                    </span>
+                  ),
+                },
+                {
+                  value: 'active',
+                  label: (
+                    <span className="flex items-center gap-1.5 py-1 px-1 text-xs sm:text-sm font-medium">
+                      <span>В работе (активные)</span>
+                      <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 font-mono font-semibold">
+                        {segmentCounts.active}
+                      </span>
+                    </span>
+                  ),
+                },
+                {
+                  value: 'in_delivery',
+                  label: (
+                    <span className="flex items-center gap-1.5 py-1 px-1 text-xs sm:text-sm font-medium">
+                      <span>В доставке (СДЭК)</span>
+                      <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/60 dark:text-cyan-300 font-mono font-semibold">
+                        {segmentCounts.in_delivery}
+                      </span>
+                    </span>
+                  ),
+                },
+                {
+                  value: 'completed',
+                  label: (
+                    <span className="flex items-center gap-1.5 py-1 px-1 text-xs sm:text-sm font-medium">
+                      <span>Завершенные</span>
+                      <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 font-mono">
+                        {segmentCounts.completed}
+                      </span>
+                    </span>
+                  ),
+                },
+                {
+                  value: 'attention',
+                  label: (
+                    <span className="flex items-center gap-1.5 py-1 px-1 text-xs sm:text-sm font-medium">
+                      <span>Требуют внимания</span>
+                      {segmentCounts.attention > 0 ? (
+                        <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300 font-mono font-bold">
+                          {segmentCounts.attention}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 font-mono">
+                          0
+                        </span>
+                      )}
+                    </span>
+                  ),
+                },
+              ]}
+              className="w-full sm:w-auto overflow-x-auto p-1 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 shadow-sm"
+            />
+          </div>
+
+          {/* Secondary Filters Bar */}
+          <Card className="apple-card rounded-2xl" styles={{ body: { padding: '14px 16px' } }}>
+            <Row gutter={[12, 12]} align="middle">
+              <Col xs={24} md={10} lg={9}>
+                <Input
+                  placeholder="Поиск по клиенту, городу, номеру, камню, треку..."
+                  prefix={<SearchOutlined className="text-slate-400" />}
+                  value={searchText}
+                  onChange={e => setSearchText(e.target.value)}
+                  allowClear
+                  className="w-full"
+                />
+              </Col>
+              <Col xs={24} sm={8} md={5} lg={5}>
+                <Select
+                  value={channelFilter}
+                  onChange={val => setChannelFilter(val)}
+                  className="w-full"
+                >
+                  <Option value="all">Все каналы ({orders.length})</Option>
+                  {Object.entries(CHANNEL_CONFIG).map(([key, config]) => (
+                    <Option key={key} value={key}>
+                      {config.label} ({orders.filter(o => o.channel === key).length})
+                    </Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col xs={24} sm={8} md={5} lg={5}>
+                <Select
+                  value={polisherFilter}
+                  onChange={val => setPolisherFilter(val)}
+                  className="w-full"
+                >
+                  <Option value="all">Все мастера</Option>
+                  {uniquePolishers.map(p => (
+                    <Option key={p} value={p}>
+                      {p} ({orders.filter(o => o.polisher === p).length})
+                    </Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col xs={24} sm={8} md={4} lg={5}>
+                <Select
+                  value={statusFilter}
+                  onChange={val => setStatusFilter(val)}
+                  className="w-full"
+                >
+                  <Option value="all">Все статусы ({orders.length})</Option>
+                  {Object.entries(statusLabels).map(([key, label]) => (
+                    <Option key={key} value={key}>
+                      {label} ({orders.filter(o => o.status === key).length})
+                    </Option>
+                  ))}
+                </Select>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Decluttered Table */}
+          <Card className="apple-card rounded-2xl overflow-hidden shadow-sm" styles={{ body: { padding: 0 } }}>
+            <Table 
+              columns={columns} 
+              dataSource={filteredOrders} 
+              rowKey="id" 
+              loading={loading}
+              pagination={{ 
+                pageSize: 8, 
+                showSizeChanger: true, 
+                responsive: true,
+                showTotal: (total, range) => `Показано ${range[0]}–${range[1]} из ${total} заказов`,
+              }}
+              scroll={{ x: 1040 }}
+            />
+          </Card>
 
       {/* Modal create/edit order */}
       <Modal
         title={
-          <div className="text-base sm:text-lg font-semibold text-slate-100 pr-6">
+          <div className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 pr-6">
             {editingOrder ? `Редактирование заказа ${editingOrder.order_number}` : 'Оформление индивидуального заказа'}
           </div>
         }
@@ -713,7 +971,17 @@ const Orders: React.FC = () => {
                 name="polisher" 
                 label="Исполнитель / Мастер-полировщик"
               >
-                <Input placeholder="Имя исполнителя / полировщика" allowClear />
+                <Select 
+                  placeholder="Выберите мастера-полировщика" 
+                  allowClear
+                  showSearch
+                >
+                  {dataStore.getMasters().map(m => (
+                    <Option key={m.id} value={m.name}>
+                      🛠️ {m.name} ({m.specialty})
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
           </Row>
@@ -1048,10 +1316,11 @@ const Orders: React.FC = () => {
       />
 
       {/* Thermal Shipping Sticker Modal */}
-      <OrderStickerModal
-        order={stickerOrder}
-        visible={!!stickerOrder}
-        onClose={() => setStickerOrder(null)}
+      <CdekShippingModal
+        order={cdekShippingOrder}
+        visible={!!cdekShippingOrder}
+        onClose={() => setCdekShippingOrder(null)}
+        onSuccess={() => loadOrders()}
       />
     </div>
   );

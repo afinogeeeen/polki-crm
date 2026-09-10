@@ -334,6 +334,80 @@ class CdekApiService {
       fullEntity: entityData?.entity || data.entity
     };
   }
+
+  /**
+   * Запрос формирования официального файла ШК СДЭК (POST /v2/print/barcodes)
+   * Формат A6 (100х150 мм) или A4
+   */
+  public async createBarcodePrint(params: {
+    orderUuid?: string;
+    cdekNumber?: string;
+    format?: 'A6' | 'A4';
+  }): Promise<{ printUuid: string; url?: string }> {
+    const token = await this.getAccessToken();
+
+    const payload = {
+      orders: [
+        {
+          ...(params.orderUuid ? { order_uuid: params.orderUuid } : {}),
+          ...(params.cdekNumber ? { cdek_number: params.cdekNumber } : {}),
+        }
+      ],
+      copy_count: 1,
+      type: 'tpl_russia',
+      format: params.format || 'A6' // A6 = термоэтикетка 100х150 мм
+    };
+
+    const res = await fetch(`${this.config.baseUrl}/print/barcodes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Ошибка запроса ШК в СДЭК (${res.status}): ${errText}`);
+    }
+
+    const data = await res.json();
+    const printUuid = data.entity?.uuid;
+    if (!printUuid) {
+      throw new Error('СДЭК не вернул UUID задания печати');
+    }
+
+    // Ожидание готовности официального PDF (GET /v2/print/barcodes/{uuid})
+    let pdfUrl = '';
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        const checkRes = await fetch(`${this.config.baseUrl}/print/barcodes/${printUuid}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.entity?.url) {
+            pdfUrl = checkData.entity.url;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn('Waiting for CDEK PDF barcode generation...', e);
+      }
+    }
+
+    return { printUuid, url: pdfUrl };
+  }
+
+  /**
+   * Получение прямой ссылки на отслеживание/квитанцию в ЛК СДЭК
+   */
+  public getOfficialTrackingUrl(cdekNumber: string): string {
+    return `https://www.cdek.ru/ru/tracking?order_id=${encodeURIComponent(cdekNumber)}`;
+  }
 }
 
 export const cdekApi = new CdekApiService();
+

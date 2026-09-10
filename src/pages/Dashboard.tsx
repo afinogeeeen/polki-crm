@@ -1,15 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Statistic, 
-  Typography, 
-  Table, 
-  Tag, 
-  Button, 
-  DatePicker,
-} from 'antd';
+import { Row, Col, Card, Statistic, Typography, Table, Tag, Button, DatePicker, Progress } from 'antd';
 import { 
   ShoppingOutlined, 
   CarOutlined, 
@@ -93,7 +83,7 @@ const Dashboard: React.FC = () => {
     const totalOrders = filteredOrders.length;
     const activeOrders = filteredOrders.filter(o => !['delivered', 'cancelled'].includes(o.status)).length;
     const totalRevenue = filteredOrders.reduce((sum, o) => sum + (Number(o.total_price) || 0), 0);
-    const deliveriesInProgress = filteredOrders.filter(o => ['sent_cdek', 'in_production'].includes(o.status)).length;
+    const deliveriesInProgress = orders.filter(o => ['in_delivery'].includes(o.status)).length;
 
     // Channels breakdown
     const channelCounts: Record<string, number> = {};
@@ -120,7 +110,7 @@ const Dashboard: React.FC = () => {
       statusCounts,
       pendingMP: reviews + questions,
     };
-  }, [filteredOrders]);
+  }, [filteredOrders, orders]);
 
   const recentOrders = useMemo(() => {
     return [...filteredOrders].slice(0, 6);
@@ -317,7 +307,7 @@ const Dashboard: React.FC = () => {
               title={<span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Объем заказов</span>}
               value={metrics.totalRevenue}
               precision={0}
-              prefix={<span className="text-emerald-500 font-sans font-bold text-xl mr-1.5">₽</span>}
+              prefix={null}
               suffix="₽"
               valueStyle={{ fontWeight: 700, fontSize: '1.75rem', color: '#10b981' }}
             />
@@ -356,7 +346,7 @@ const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Analytics Details: Channels & Order Statuses (Stone popularity removed as requested) */}
+            {/* Analytics Details: Channels & Order Statuses */}
       <Row gutter={[16, 16]}>
         {/* Contact Channels Breakdown */}
         <Col xs={24} lg={12}>
@@ -364,26 +354,20 @@ const Dashboard: React.FC = () => {
             title={<span className="font-bold text-sm tracking-tight text-slate-900 dark:text-slate-100">Каналы поступления обращений</span>}
             className="apple-card rounded-2xl h-full"
           >
-            <div className="space-y-2">
+            <div className="space-y-4">
               {Object.entries(CHANNEL_CONFIG).map(([key, config]) => {
                 const count = metrics.channelCounts[key] || 0;
                 const percent = metrics.totalOrders > 0 ? Math.round((count / metrics.totalOrders) * 100) : 0;
                 return (
-                  <div key={key} className={`flex items-center justify-between text-xs p-3 rounded-xl border transition ${
-                    isDark 
-                      ? 'bg-slate-900/50 border-slate-800 text-slate-200' 
-                      : 'bg-slate-50/80 border-slate-200/70 text-slate-800'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <Tag color={config.color} className="mr-0 rounded-full font-medium px-2.5 py-0.5">
-                        {config.icon && <span className="mr-1">{config.icon}</span>}
+                  <div key={key} className="flex flex-col">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        {config.icon && <span>{config.icon}</span>}
                         {config.label}
-                      </Tag>
+                      </div>
+                      <div className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">{count} ({percent}%)</div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold font-mono text-sm">{count}</span>
-                      <span className="text-slate-600 dark:text-slate-400 w-10 text-right font-semibold">{percent}%</span>
-                    </div>
+                    <Progress percent={percent} strokeColor={config.color} showInfo={false} size="small" />
                   </div>
                 );
               })}
@@ -397,23 +381,20 @@ const Dashboard: React.FC = () => {
             title={<span className="font-bold text-sm tracking-tight text-slate-900 dark:text-slate-100">Воронка производства и статусы</span>}
             className="apple-card rounded-2xl h-full"
           >
-            <div className="space-y-2">
+            <div className="space-y-4">
               {Object.entries(statusLabels).map(([key, label]) => {
                 const count = metrics.statusCounts[key] || 0;
                 const percent = metrics.totalOrders > 0 ? Math.round((count / metrics.totalOrders) * 100) : 0;
+                const color = statusColors[key as Order['status']] || '#1890ff';
                 return (
-                  <div key={key} className={`flex items-center justify-between text-xs p-3 rounded-xl border transition ${
-                    isDark 
-                      ? 'bg-slate-900/50 border-slate-800 text-slate-200' 
-                      : 'bg-slate-50/80 border-slate-200/70 text-slate-800'
-                  }`}>
-                    <Tag color={statusColors[key as Order['status']] || 'default'} className="mr-0 rounded-full font-medium px-2.5 py-0.5">
-                      {label}
-                    </Tag>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold font-mono text-sm">{count}</span>
-                      <span className="text-slate-600 dark:text-slate-400 w-10 text-right font-semibold">{percent}%</span>
+                  <div key={key} className="flex flex-col">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        {label}
+                      </div>
+                      <div className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">{count} ({percent}%)</div>
                     </div>
+                    <Progress percent={percent} strokeColor={color} showInfo={false} size="small" />
                   </div>
                 );
               })}

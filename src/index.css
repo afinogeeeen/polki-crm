@@ -1,7 +1,13 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
+
+/* Bind Tailwind v4 dark: modifier strictly to the .dark class on html/root */
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+html.dark {
   color-scheme: dark;
 }
 
@@ -10,11 +16,13 @@ html.light {
 }
 
 html, body, #root {
-  height: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
   margin: 0;
   font-family: var(--apple-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
@@ -24,29 +32,90 @@ html.dark body {
 }
 
 html.light body {
-  background-color: #f5f5f7; /* Apple signature subtle warm gray */
-  color: #1d1d1f;            /* Apple deep primary text */
+  background-color: #f5f7fa; /* Apple-inspired subtle warm background */
+  color: #0f172a;            /* Deep dark slate primary text */
 }
 
-/* Apple-style Glassmorphism and Cards */
+/* Crisp Apple-style Cards */
 .apple-card {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html.dark .apple-card {
-  background-color: rgba(30, 41, 59, 0.7);
+  background-color: rgba(19, 27, 46, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  color: #f1f5f9;
 }
 
 html.light .apple-card {
-  background-color: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 10px 24px -5px rgba(0, 0, 0, 0.04);
+  color: #0f172a;
+}
+
+/* Light Theme High-Contrast Typography & Antd Elements */
+html.light .ant-typography,
+html.light h1, html.light h2, html.light h3, html.light h4, html.light h5, html.light h6 {
+  color: #0f172a !important;
+}
+
+html.light .ant-statistic-title {
+  color: #64748b !important;
+  font-weight: 700 !important;
+}
+
+html.light .ant-statistic-content-value,
+html.light .ant-statistic-content {
+  color: #0f172a !important;
+}
+
+html.light .ant-table {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light .ant-table-thead > tr > th {
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html.light .ant-table-tbody > tr > td {
+  color: #0f172a !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+html.light .ant-table-tbody > tr:hover > td {
+  background-color: #f8fafc !important;
+}
+
+html.light .ant-modal-content,
+html.light .ant-modal-header {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light .ant-modal-title {
+  color: #0f172a !important;
+}
+
+html.light .ant-drawer-content {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light .ant-select-selector,
+html.light .ant-input {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
 }
 
 /* Apple Segmented Controls & Pills */
@@ -93,6 +162,30 @@ html.light ::-webkit-scrollbar-track {
   background: rgba(241, 245, 249, 0.8);
 }
 html.light ::-webkit-scrollbar-thumb {
+/* Apple Segmented Controls & Pills */
+.apple-pill {
+  border-radius: 9999px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+/* Luxury Stone Accent Gradients and Badges */
+.stone-gradient-badge {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(14, 165, 233, 0.18) 50%, rgba(99, 102, 241, 0.15) 100%);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.gold-vein-badge {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.25) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.emerald-vein-badge {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
   background: rgba(203, 213, 225, 0.8);
   border-radius: 9999px;
 }
@@ -100,7 +193,14 @@ html.light ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.9);
 }
 
-/* Print Styles for Technological Cards and Thermal Stickers */
+
+/* Salary Printable Sheet: hidden on screen, visible only during print */
+.salary-printable-sheet,
+.fbo-printable-sheet {
+  display: none !important;
+}
+
+/* Print Styles for Technological Cards, Thermal Stickers and Salary Statements */
 @media print {
   body * {
     visibility: hidden;
@@ -154,6 +254,46 @@ html.light ::-webkit-scrollbar-thumb:hover {
     border: 2px solid #000 !important;
   }
 
+  /* Print Salary and Production Statement */
+  body.print-salary-report #printable-salary-statement,
+  body.print-salary-report #printable-salary-statement * {
+    visibility: visible !important;
+  }
+
+  body.print-salary-report #printable-salary-statement {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 8mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Print FBO Workshop Work Order */
+  body.print-fbo-work-order #printable-fbo-work-order,
+  body.print-fbo-work-order #printable-fbo-work-order * {
+    visibility: visible !important;
+  }
+
+  body.print-fbo-work-order #printable-fbo-work-order {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 8mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
   .print-page-break {
     page-break-after: always;
     break-after: page;
@@ -161,7 +301,7 @@ html.light ::-webkit-scrollbar-thumb:hover {
   }
 
   @page {
-    margin: 0;
+    margin: 8mm;
   }
 }
 

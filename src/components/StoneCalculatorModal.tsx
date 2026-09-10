@@ -3,18 +3,21 @@ import {
   Modal, 
   Row, 
   Col, 
+  Input,
   InputNumber, 
   Select, 
-  Checkbox, 
   Card, 
   Typography, 
   Divider, 
   Button, 
-  Tag 
+  Tag,
+  Space
 } from 'antd';
 import { 
   CalculatorOutlined, 
   CheckOutlined, 
+  PlusOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -28,129 +31,121 @@ export interface CalculationResult {
   description: string;
 }
 
+export interface CustomOption {
+  id: string;
+  name: string;
+  price: number;
+  enabled: boolean;
+}
+
 interface Props {
   visible: boolean;
   onClose: () => void;
   onApply: (result: CalculationResult) => void;
 }
 
-// Базовые ставки за м2 слэба с первичным распилом (Натуральный камень + Агломераты)
-const STONE_PRICING: Record<string, { name: string; category: 'natural' | 'agglomerate'; pricePerM2: number; density: string }> = {
-  // Натуральный камень
-  marble_white: { name: 'Белый мрамор (Калакатта / Бьянко)', category: 'natural', pricePerM2: 24000, density: '2.7 г/см³' },
-  granite_black: { name: 'Черный гранит (Габбро-Диабаз)', category: 'natural', pricePerM2: 18000, density: '3.1 г/см³' },
-  onyx_honey: { name: 'Оникс Медовый (полупрозрачный)', category: 'natural', pricePerM2: 38000, density: '2.6 г/см³' },
-  travertine_classic: { name: 'Травертин Классик / Ноче', category: 'natural', pricePerM2: 21000, density: '2.4 г/см³' },
-  quartzite_patagonia: { name: 'Кварцит Патагония (Премиум)', category: 'natural', pricePerM2: 55000, density: '2.65 г/см³' },
-  granite_gray: { name: 'Серый гранит (Покостовский)', category: 'natural', pricePerM2: 15000, density: '2.8 г/см³' },
-  // Агломераты и композиты
-  quartz_calacatta: { name: 'Кварцевый агломерат (под Калакатта/Мрамор)', category: 'agglomerate', pricePerM2: 26000, density: '2.4 г/см³' },
-  quartz_monocolor: { name: 'Кварцевый агломерат (Моноколор Белый/Серый/Черный)', category: 'agglomerate', pricePerM2: 21000, density: '2.4 г/см³' },
-  quartz_concrete: { name: 'Кварцевый агломерат (Лофт Бетон / Антрацит)', category: 'agglomerate', pricePerM2: 23000, density: '2.4 г/см³' },
-  acrylic_stone: { name: 'Акриловый камень (Grandex / Staron / Corian)', category: 'agglomerate', pricePerM2: 19000, density: '1.75 г/см³' },
-};
-
-// Стоимость обработки фаски за погонный метр
-const CHAMFER_PRICING: Record<string, { name: string; pricePerMeter: number }> = {
-  euro: { name: 'Еврофаска (технологическая 2-3 мм + полировка)', pricePerMeter: 1200 },
-  half_bullnose: { name: 'Полувал (скругление верхнего ребра R10-R15)', pricePerMeter: 2200 },
-  full_bullnose: { name: 'Полный вал (полукруглый торец)', pricePerMeter: 3200 },
-  curly: { name: 'Фигурная дизайнерская кромка (ОГЭ/Каскад)', pricePerMeter: 4500 },
-};
-
 export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onApply }) => {
-  const [stoneKey, setStoneKey] = useState<string>('marble_white');
+  // 1. Материал: свободный ввод
+  const [materialName, setMaterialName] = useState<string>('Белый мрамор (Калакатта)');
+  const [pricePerM2, setPricePerM2] = useState<number>(24000);
+
+  // 2. Размеры изделия
   const [lengthMm, setLengthMm] = useState<number>(800);
   const [widthMm, setWidthMm] = useState<number>(200);
   const [thicknessMm, setThicknessMm] = useState<number>(20);
-  const [chamferKey, setChamferKey] = useState<string>('euro');
 
-  // Дополнительные опции
-  const [withHiddenMounts, setWithHiddenMounts] = useState<boolean>(true); // Скрытые кронштейны
-  const [withHydrophobic, setWithHydrophobic] = useState<boolean>(true);   // Влагостойкая пропитка
-  const [withLedGroove, setWithLedGroove] = useState<boolean>(false);       // Вырез под LED-ленту
-  const [withRoundedCorners, setWithRoundedCorners] = useState<boolean>(true); // Скругление углов R10
+  // 3. Динамические пользовательские дополнительные опции
+  const [customOptions, setCustomOptions] = useState<CustomOption[]>([
+    { id: '1', name: 'Скрытые менсолодержатели (комплект)', price: 1800, enabled: true },
+    { id: '2', name: 'Влагостойкая гидрофобная пропитка', price: 1200, enabled: true },
+    { id: '3', name: 'Скругление углов R10', price: 800, enabled: false },
+  ]);
+
+  // Поля для добавления новой опции
+  const [newOptionName, setNewOptionName] = useState<string>('');
+  const [newOptionPrice, setNewOptionPrice] = useState<number | null>(null);
 
   // Расчетные величины
   const [areaM2, setAreaM2] = useState<number>(0);
-  const [perimeterMeters, setPerimeterMeters] = useState<number>(0);
   const [weightKg, setWeightKg] = useState<number>(0);
   const [costStone, setCostStone] = useState<number>(0);
-  const [costChamfer, setCostChamfer] = useState<number>(0);
   const [costExtras, setCostExtras] = useState<number>(0);
   const [totalPrice, setTotalPrice] = useState<number>(0);
 
   useEffect(() => {
-    // 1. Площадь в м2 (с коэффициентом делового запаса на слэб 1.25)
+    // 1. Площадь в м2 (с коэффициентом делового запаса на распил слэба 1.25)
     const rawArea = (lengthMm / 1000) * (widthMm / 1000);
-    const calculatedArea = Math.max(rawArea, 0.05); // мин. 0.05 м2
+    const calculatedArea = Math.max(rawArea, 0.01);
     setAreaM2(Number(rawArea.toFixed(3)));
 
-    // 2. Периметр лицевой обработки: передняя грань + 2 боковые = (Длина + 2 * Ширина) / 1000
-    const visiblePerimeter = (lengthMm + 2 * widthMm) / 1000;
-    setPerimeterMeters(Number(visiblePerimeter.toFixed(2)));
-
-    // 3. Вес: V (м3) * плотность
-    // Акриловый камень ~1750 кг/м3, кварцевый агломерат ~2400 кг/м3, натуральный мрамор/гранит ~2700 кг/м3
-    const stoneCat = STONE_PRICING[stoneKey]?.category;
-    const density = stoneKey.includes('acrylic') ? 1750 : stoneCat === 'agglomerate' ? 2400 : 2700;
+    // 2. Расчетный вес: V (м3) * плотность камня (~2700 кг/м3)
     const volumeM3 = (lengthMm / 1000) * (widthMm / 1000) * (thicknessMm / 1000);
-    const weight = Math.round(volumeM3 * density * 10) / 10;
+    const weight = Math.round(volumeM3 * 2700 * 10) / 10;
     setWeightKg(weight);
 
-    // 4. Стоимость камня (слэб + распил)
-    const stoneRate = STONE_PRICING[stoneKey]?.pricePerM2 || 20000;
-    // Учитываем толщину: стандарт 20мм, при 30мм коэффициент 1.35
+    // 3. Стоимость камня (площадь * цена м2 * коэф толщины)
     const thicknessCoeff = thicknessMm > 25 ? 1.35 : 1.0;
-    const stoneCost = Math.round(calculatedArea * 1.25 * stoneRate * thicknessCoeff);
+    const stoneCost = Math.round(calculatedArea * 1.25 * (pricePerM2 || 0) * thicknessCoeff);
     setCostStone(stoneCost);
 
-    // 5. Стоимость фаски
-    const chamferRate = CHAMFER_PRICING[chamferKey]?.pricePerMeter || 1200;
-    const chamferCost = Math.round(visiblePerimeter * chamferRate);
-    setCostChamfer(chamferCost);
+    // 4. Сумма активных дополнительных опций
+    const extrasTotal = customOptions
+      .filter(opt => opt.enabled)
+      .reduce((sum, opt) => sum + (Number(opt.price) || 0), 0);
+    setCostExtras(extrasTotal);
 
-    // 6. Доп. опции
-    let extras = 0;
-    if (withHiddenMounts) extras += 1800; // Пара усиленных стальных штоков менсолодержателей
-    if (withHydrophobic) extras += 1200;  // Гидрофобный нано-состав Akemi/Bellinzoni
-    if (withLedGroove) extras += 2500;    // Фрезеровка паза под алюминиевый LED-профиль
-    if (withRoundedCorners) extras += 800; // Ручное скругление углов
-    setCostExtras(extras);
-
-    // 7. Итоговая розничная цена с округлением до 100 руб
-    const total = Math.ceil((stoneCost + chamferCost + extras) / 100) * 100;
+    // 5. Итоговая цена с округлением до 100 руб
+    const total = Math.ceil((stoneCost + extrasTotal) / 100) * 100;
     setTotalPrice(total);
   }, [
-    stoneKey, 
     lengthMm, 
     widthMm, 
     thicknessMm, 
-    chamferKey, 
-    withHiddenMounts, 
-    withHydrophobic, 
-    withLedGroove, 
-    withRoundedCorners
+    pricePerM2,
+    customOptions
   ]);
 
-  const handleApply = () => {
-    const stoneInfo = STONE_PRICING[stoneKey]?.name || 'Натуральный камень';
-    const chamferInfo = CHAMFER_PRICING[chamferKey]?.name.split('(')[0].trim() || 'Еврофаска';
-    
-    const extraLabels = [];
-    if (withHiddenMounts) extraLabels.push('скрытые менсолодержатели');
-    if (withHydrophobic) extraLabels.push('гидрофобная пропитка');
-    if (withLedGroove) extraLabels.push('вырез под LED');
-    if (withRoundedCorners) extraLabels.push('скругленные углы');
+  const handleAddCustomOption = () => {
+    if (!newOptionName.trim()) return;
+    const newOpt: CustomOption = {
+      id: Date.now().toString(),
+      name: newOptionName.trim(),
+      price: newOptionPrice || 0,
+      enabled: true
+    };
+    setCustomOptions([...customOptions, newOpt]);
+    setNewOptionName('');
+    setNewOptionPrice(null);
+  };
 
-    const desc = `Обработка: ${chamferInfo}. Комплектация: ${extraLabels.join(', ')}. Расчетный вес ~${weightKg} кг.`;
+  const handleRemoveOption = (id: string) => {
+    setCustomOptions(customOptions.filter(o => o.id !== id));
+  };
+
+  const handleToggleOption = (id: string, checked: boolean) => {
+    setCustomOptions(customOptions.map(o => o.id === id ? { ...o, enabled: checked } : o));
+  };
+
+  const handleUpdateOptionPrice = (id: string, newPrice: number | null) => {
+    setCustomOptions(customOptions.map(o => o.id === id ? { ...o, price: newPrice || 0 } : o));
+  };
+
+  const handleApply = () => {
+    const activeOptions = customOptions.filter(o => o.enabled);
+    const activeLabels = activeOptions.map(o => `${o.name} (${o.price.toLocaleString('ru-RU')} ₽)`);
+
+    const descParts = [];
+    if (activeLabels.length > 0) {
+      descParts.push(`Опции: ${activeLabels.join(', ')}`);
+    }
+    descParts.push(`Вес ~${weightKg} кг`);
 
     onApply({
-      stoneType: stoneInfo,
+      stoneType: materialName.trim() || 'Индивидуальный материал',
       dimensions: `${lengthMm}х${widthMm}х${thicknessMm} мм`,
       totalPrice,
       prepaymentAmount: Math.round(totalPrice * 0.5), // 50% предоплата
-      description: desc,
+      description: descParts.join('. '),
     });
     onClose();
   };
@@ -160,12 +155,12 @@ export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onAppl
       title={
         <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-semibold">
           <CalculatorOutlined className="text-blue-500 text-lg" />
-          <span>Калькулятор полок из камня и агломерата («Каменный Ручей»)</span>
+          <span>Калькулятор стоимости изделия</span>
         </div>
       }
       open={visible}
       onCancel={onClose}
-      width={760}
+      width={780}
       footer={[
         <Button key="close" onClick={onClose}>
           Отмена
@@ -177,7 +172,7 @@ export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onAppl
           onClick={handleApply}
           className="bg-blue-600 hover:bg-blue-500"
         >
-          Применить расчет к заказу ({totalPrice.toLocaleString('ru-RU')} ₽)
+          Применить расчет ({totalPrice.toLocaleString('ru-RU')} ₽)
         </Button>
       ]}
       style={{ top: 20 }}
@@ -186,42 +181,44 @@ export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onAppl
         <Row gutter={[16, 16]}>
           {/* Left: Input parameters */}
           <Col xs={24} md={14} className="space-y-3">
-            <div>
-              <Text className="text-slate-700 dark:text-slate-300 font-medium block mb-1">Материал (натуральный камень / кварцевый агломерат):</Text>
-              <Select 
-                value={stoneKey} 
-                onChange={setStoneKey} 
-                className="w-full"
-              >
-                <Select.OptGroup label="Натуральный камень">
-                  {Object.entries(STONE_PRICING)
-                    .filter(([_, item]) => item.category === 'natural')
-                    .map(([key, item]) => (
-                      <Option key={key} value={key}>
-                        {item.name} — {item.pricePerM2.toLocaleString('ru-RU')} ₽/м²
-                      </Option>
-                    ))}
-                </Select.OptGroup>
-                <Select.OptGroup label="Кварцевые агломераты и акрил">
-                  {Object.entries(STONE_PRICING)
-                    .filter(([_, item]) => item.category === 'agglomerate')
-                    .map(([key, item]) => (
-                      <Option key={key} value={key}>
-                        {item.name} — {item.pricePerM2.toLocaleString('ru-RU')} ₽/м²
-                      </Option>
-                    ))}
-                </Select.OptGroup>
-              </Select>
+            {/* 1. Свободный ввод материала */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2">
+              <Text className="text-slate-800 dark:text-slate-200 font-bold block">
+                Материал изделия (свободный ввод):
+              </Text>
+              <Row gutter={8}>
+                <Col span={15}>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Название камня / материала:</div>
+                  <Input 
+                    value={materialName} 
+                    onChange={e => setMaterialName(e.target.value)}
+                    placeholder="Например: Гранит Блэк Гэлакси, Кварцит, Мрамор..."
+                    className="w-full"
+                  />
+                </Col>
+                <Col span={9}>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Цена за м² (₽):</div>
+                  <InputNumber 
+                    min={0}
+                    step={500}
+                    value={pricePerM2} 
+                    onChange={v => setPricePerM2(Number(v) || 0)}
+                    className="w-full font-mono"
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}
+                  />
+                </Col>
+              </Row>
             </div>
 
+            {/* 2. Габариты изделия */}
             <div>
-              <Text className="text-slate-700 dark:text-slate-300 font-medium block mb-1">Габариты изделия (миллиметры):</Text>
+              <Text className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">Габариты изделия (миллиметры):</Text>
               <Row gutter={8}>
                 <Col span={8}>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Длина (мм):</div>
                   <InputNumber 
-                    min={100} 
-                    max={3200} 
+                    min={50} 
+                    max={5000} 
                     step={10} 
                     value={lengthMm} 
                     onChange={v => setLengthMm(Number(v) || 800)}
@@ -232,7 +229,7 @@ export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onAppl
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Ширина / глубина:</div>
                   <InputNumber 
                     min={50} 
-                    max={1200} 
+                    max={3000} 
                     step={10} 
                     value={widthMm} 
                     onChange={v => setWidthMm(Number(v) || 200)}
@@ -240,86 +237,144 @@ export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onAppl
                   />
                 </Col>
                 <Col span={8}>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Толщина камня:</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Толщина (мм):</div>
                   <Select 
                     value={thicknessMm} 
                     onChange={v => setThicknessMm(v)}
                     className="w-full"
                   >
-                    <Option value={12}>12 мм (тонкий)</Option>
+                    <Option value={12}>12 мм</Option>
                     <Option value={20}>20 мм (стандарт)</Option>
-                    <Option value={30}>30 мм (массив)</Option>
+                    <Option value={30}>30 мм</Option>
+                    <Option value={40}>40 мм</Option>
                   </Select>
                 </Col>
               </Row>
             </div>
 
-            <div>
-              <Text className="text-slate-700 dark:text-slate-300 font-medium block mb-1">Тип обработки лицевой кромки (фаски):</Text>
-              <Select 
-                value={chamferKey} 
-                onChange={setChamferKey} 
-                className="w-full"
-              >
-                {Object.entries(CHAMFER_PRICING).map(([key, item]) => (
-                  <Option key={key} value={key}>
-                    {item.name} — {item.pricePerMeter} ₽/пог.м
-                  </Option>
-                ))}
-              </Select>
-            </div>
-
+            {/* 3. Дополнительные опции (кастомное добавление) */}
             <div className="pt-1">
-              <Text className="text-slate-700 dark:text-slate-300 font-medium block mb-1.5">Дополнительные опции и оснащение:</Text>
-              <div className="space-y-1.5 bg-slate-100 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                <Checkbox 
-                  checked={withHiddenMounts} 
-                  onChange={e => setWithHiddenMounts(e.target.checked)}
-                >
-                  <span className="text-xs text-slate-700 dark:text-slate-200">Комплект скрытого крепежа в стену (+1 800 ₽)</span>
-                </Checkbox>
-                <br />
-                <Checkbox 
-                  checked={withHydrophobic} 
-                  onChange={e => setWithHydrophobic(e.target.checked)}
-                >
-                  <span className="text-xs text-slate-700 dark:text-slate-200">Влагостойкая гидрофобная пропитка для ванной (+1 200 ₽)</span>
-                </Checkbox>
-                <br />
-                <Checkbox 
-                  checked={withRoundedCorners} 
-                  onChange={e => setWithRoundedCorners(e.target.checked)}
-                >
-                  <span className="text-xs text-slate-700 dark:text-slate-200">Безопасное скругление передних углов R10 (+800 ₽)</span>
-                </Checkbox>
-                <br />
-                <Checkbox 
-                  checked={withLedGroove} 
-                  onChange={e => setWithLedGroove(e.target.checked)}
-                >
-                  <span className="text-xs text-slate-700 dark:text-slate-200">Фрезеровка паза под LED-ленту подсветки (+2 500 ₽)</span>
-                </Checkbox>
+              <div className="flex items-center justify-between mb-1.5">
+                <Text className="text-slate-800 dark:text-slate-200 font-semibold block">
+                  Дополнительные опции:
+                </Text>
+                <span className="text-[11px] text-slate-500">
+                  Выбрано на: {costExtras.toLocaleString('ru-RU')} ₽
+                </span>
+              </div>
+
+              {/* Список добавленных опций */}
+              <div className="space-y-2 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 max-h-48 overflow-y-auto">
+                {customOptions.length === 0 ? (
+                  <div className="text-center py-2 text-slate-400 text-xs">
+                    Нет добавленных опций. Добавьте нужные опции ниже.
+                  </div>
+                ) : (
+                  customOptions.map((opt) => (
+                    <div 
+                      key={opt.id} 
+                      className={`flex items-center justify-between gap-2 p-1.5 rounded border transition-colors ${
+                        opt.enabled 
+                          ? 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700' 
+                          : 'bg-slate-100/50 dark:bg-slate-900/30 border-dashed border-slate-200 dark:border-slate-800 opacity-60'
+                      }`}
+                    >
+                      <label className="flex items-center gap-2 flex-1 cursor-pointer select-none text-xs m-0">
+                        <input 
+                          type="checkbox" 
+                          checked={opt.enabled} 
+                          onChange={e => handleToggleOption(opt.id, e.target.checked)}
+                          className="rounded border-slate-300 text-blue-600 cursor-pointer"
+                        />
+                        <span className={`font-medium ${opt.enabled ? 'text-slate-900 dark:text-slate-100' : 'text-slate-500'}`}>
+                          {opt.name}
+                        </span>
+                      </label>
+
+                      <div className="flex items-center gap-1.5">
+                        <InputNumber 
+                          size="small"
+                          min={0}
+                          step={100}
+                          value={opt.price}
+                          onChange={val => handleUpdateOptionPrice(opt.id, val)}
+                          className="w-24 font-mono text-xs"
+                          formatter={value => `${value} ₽`}
+                        />
+                        <Button 
+                          type="text" 
+                          danger 
+                          size="small"
+                          icon={<DeleteOutlined />} 
+                          onClick={() => handleRemoveOption(opt.id)}
+                          title="Удалить опцию"
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Форма добавления новой кастомной опции */}
+              <div className="mt-2 p-2 bg-slate-100 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  + Добавить новую опцию:
+                </div>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Input 
+                    placeholder="Название опции (например: вырез под розетку, фаска ОГЭ...)"
+                    value={newOptionName}
+                    onChange={e => setNewOptionName(e.target.value)}
+                    onPressEnter={handleAddCustomOption}
+                    className="text-xs"
+                  />
+                  <InputNumber 
+                    placeholder="Цена, ₽"
+                    min={0}
+                    step={100}
+                    value={newOptionPrice}
+                    onChange={setNewOptionPrice}
+                    onPressEnter={handleAddCustomOption}
+                    style={{ width: '130px' }}
+                    className="font-mono text-xs"
+                  />
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />}
+                    onClick={handleAddCustomOption}
+                    disabled={!newOptionName.trim()}
+                    className="bg-blue-600 hover:bg-blue-500 text-xs"
+                  >
+                    Добавить
+                  </Button>
+                </Space.Compact>
               </div>
             </div>
           </Col>
 
           {/* Right: Calculation summary card */}
           <Col xs={24} md={10}>
-            <Card className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 shadow-md h-full flex flex-col justify-between">
+            <Card className="bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 shadow-sm h-full flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Спецификация изделия</span>
-                  <Tag color="cyan">{thicknessMm} мм</Tag>
+                  <span className="text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">Спецификация</span>
+                  <Tag color="blue">{thicknessMm} мм</Tag>
                 </div>
 
                 <div className="space-y-2 py-3 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Площадь полки:</span>
-                    <span className="text-slate-900 dark:text-slate-200 font-mono font-medium">{areaM2} м²</span>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Материал:</span>
+                    <span className="text-slate-900 dark:text-slate-200 font-semibold truncate block">
+                      {materialName || 'Не указан'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Периметр фаски:</span>
-                    <span className="text-slate-900 dark:text-slate-200 font-mono font-medium">{perimeterMeters} пог. м</span>
+                    <span className="text-slate-500 dark:text-slate-400">Габариты:</span>
+                    <span className="text-slate-900 dark:text-slate-200 font-mono font-medium">{lengthMm} × {widthMm} мм</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Площадь изделия:</span>
+                    <span className="text-slate-900 dark:text-slate-200 font-mono font-medium">{areaM2} м²</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500 dark:text-slate-400">Расчетный вес:</span>
@@ -329,28 +384,23 @@ export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onAppl
                   <Divider className="!my-2 !border-slate-200 dark:!border-slate-800" />
 
                   <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Слэб и распил:</span>
+                    <span className="text-slate-500 dark:text-slate-400">Материал и распил:</span>
                     <span className="text-slate-900 dark:text-slate-200 font-medium">{costStone.toLocaleString('ru-RU')} ₽</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Полировка фаски:</span>
-                    <span className="text-slate-900 dark:text-slate-200 font-medium">{costChamfer.toLocaleString('ru-RU')} ₽</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Опции и крепеж:</span>
+                    <span className="text-slate-500 dark:text-slate-400">Выбранные опции:</span>
                     <span className="text-slate-900 dark:text-slate-200 font-medium">{costExtras.toLocaleString('ru-RU')} ₽</span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 -mx-6 -mb-6 p-4 rounded-b-lg">
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Рекомендуемая розничная цена:</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Итоговая расчетная стоимость:</div>
                 <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <span className="font-sans font-bold text-xl">₽</span>
                   {totalPrice.toLocaleString('ru-RU')} ₽
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Аванс 50%: <strong className="text-slate-900 dark:text-slate-200">{Math.round(totalPrice * 0.5).toLocaleString('ru-RU')} ₽</strong>
+                  Предоплата 50%: <strong className="text-slate-900 dark:text-slate-200">{Math.round(totalPrice * 0.5).toLocaleString('ru-RU')} ₽</strong>
                 </div>
               </div>
             </Card>
@@ -360,3 +410,4 @@ export const StoneCalculatorModal: React.FC<Props> = ({ visible, onClose, onAppl
     </Modal>
   );
 };
+
